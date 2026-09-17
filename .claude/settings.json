@@ -1,0 +1,52 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv:*)", "Bash(uv run:*)", "Bash(uv sync:*)", "Bash(uv add:*)",
+      "Bash(uv lock:*)", "Bash(uv pip:*)", "Bash(uv python:*)",
+      "Bash(python:*)", "Bash(pytest:*)", "Bash(ruff:*)",
+      "Bash(git:*)", "Bash(gh:*)", "Bash(playwright:*)",
+      "Bash(ls:*)", "Bash(cat:*)", "Bash(head:*)", "Bash(tail:*)",
+      "Bash(find:*)", "Bash(grep:*)", "Bash(rg:*)", "Bash(mkdir:*)",
+      "Bash(cp:*)", "Bash(mv:*)", "Bash(touch:*)", "Bash(echo:*)",
+      "Bash(printf:*)", "Bash(od:*)", "Bash(sed:*)", "Bash(awk:*)",
+      "Bash(sort:*)", "Bash(wc:*)", "Bash(for:*)", "Bash(while:*)",
+      "Bash(until:*)", "Bash(if:*)", "Bash(cd:*)",
+      "PowerShell(uv:*)", "PowerShell(python:*)", "PowerShell(pytest:*)",
+      "PowerShell(ruff:*)", "PowerShell(git:*)", "PowerShell(gh:*)",
+      "PowerShell(Get-ChildItem:*)", "PowerShell(Get-Content:*)",
+      "PowerShell(Set-Content:*)", "PowerShell(New-Item:*)",
+      "PowerShell(Copy-Item:*)", "PowerShell(Move-Item:*)",
+      "PowerShell(Test-Path:*)", "PowerShell(Select-Object:*)",
+      "PowerShell(Write-Output:*)", "PowerShell(Select-String:*)",
+      "PowerShell(Measure-Object:*)", "PowerShell(ForEach-Object:*)",
+      "PowerShell(Where-Object:*)", "PowerShell(Out-File:*)",
+      "PowerShell(Get-Command:*)",
+      "Read(//c/temp/Sportfogadas/**)",
+      "Edit(//c/temp/Sportfogadas/**)",
+      "Write(//c/temp/Sportfogadas/**)",
+      "Glob(//c/temp/Sportfogadas/**)",
+      "Grep(//c/temp/Sportfogadas/**)",
+      "WebFetch(domain:tippmixpro.hu)",
+      "WebFetch(domain:sports2.tippmixpro.hu)",
+      "WebFetch(domain:football-data.co.uk)",
+      "WebFetch(domain:www.football-data.co.uk)",
+      "WebFetch(domain:understat.com)",
+      "WebFetch(domain:clubelo.com)",
+      "WebFetch(domain:fbref.com)",
+      "WebFetch(domain:stats.nba.com)",
+      "WebFetch(domain:cdn.nba.com)",
+      "WebFetch(domain:www.nba.com)",
+      "WebFetch(domain:live.euroleague.net)",
+      "WebFetch(domain:supabase.com)",
+      "WebFetch(domain:docs.python.org)",
+      "WebFetch(domain:github.com)",
+      "WebSearch"
+    ],
+    "deny": [
+      "Read(//c/temp/Sportfogadas/.env)",
+      "Edit(//c/temp/Sportfogadas/.env)",
+      "Bash(git push --force:*)",
+      "Bash(git reset --hard:*)"
+    ]
+  }
+}

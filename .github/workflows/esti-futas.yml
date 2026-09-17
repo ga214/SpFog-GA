@@ -1,0 +1,69 @@
+name: Esti futás
+
+# Az esti (18:00 CET) futás a késői meccsekre ad javaslatot, már megerősített
+# felállásokkal, ezért ALACSONYABB küszöbbel (min_edge_este = 3,5 pp).
+#
+# Ugyanaz az esemény csak EGYSZER javasolható: ez a futás átugorja, amire a
+# délelőtti már adott javaslatot (DUPLIKATUM kiesés).
+#
+# IDŐZÓNA: lásd a délelőtti workflow magyarázatát. 18:00 CET télen 17:00 UTC,
+# nyáron 16:00 UTC.
+
+on:
+  schedule:
+    - cron: "0 17 * * *"  # 18:00 CET  (téli időszámítás)
+    - cron: "0 16 * * *"  # 18:00 CEST (nyári időszámítás)
+  workflow_dispatch:
+    inputs:
+      szarazon:
+        description: "Szárazon futtatás (nem küld e-mailt, nem ír DB-be)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: napi-futas
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  futtat:
+    name: Esti javaslatok
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Repó letöltése
+        uses: actions/checkout@v4
+
+      - name: uv telepítése
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Python és függőségek
+        run: uv sync --frozen
+
+      - name: Futás
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          EMAIL_FELHASZNALO: ${{ secrets.EMAIL_FELHASZNALO }}
+          EMAIL_APP_JELSZO: ${{ secrets.EMAIL_APP_JELSZO }}
+          EMAIL_CIMZETT: ${{ secrets.EMAIL_CIMZETT }}
+          TIPPMIX_NAPLO_FORMATUM: json
+        run: |
+          uv run tippmix futtat \
+            --tipus este \
+            --ido-ellenorzes \
+            ${{ inputs.szarazon && '--szarazon' || '' }}
+
+      - name: Napló feltöltése hiba esetén
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: naplo-este-${{ github.run_id }}
+          path: logs/
+          retention-days: 14
+          if-no-files-found: ignore

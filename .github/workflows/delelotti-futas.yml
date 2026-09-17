@@ -1,0 +1,75 @@
+name: Délelőtti futás
+
+# A délelőtti (09:00 CET) futás a kora délutáni kezdésű meccsekre ad
+# javaslatot, a kezdőcsapatok ismerete nélkül, ezért MAGASABB küszöbbel
+# (min_edge_délelőtt = 5 pp).
+#
+# IDŐZÓNA: a GitHub Actions cron CSAK UTC-t ismer. A magyar nyári
+# időszámítás miatt a 09:00 CET télen 08:00 UTC, nyáron 07:00 UTC.
+# Ezért KÉT cron-bejegyzés van, és a `--ido-ellenorzes` kapcsoló gondoskodik
+# róla, hogy csak a helyes fusson végig — a másik azonnal kilép.
+#
+# KÉSÉS: az Actions cron nagy terhelésnél 15+ percet késhet. A
+# settings.yaml `cron_turés_perc` értéke ezt tolerálja.
+
+on:
+  schedule:
+    - cron: "0 8 * * *"   # 09:00 CET  (téli időszámítás, okt-márc)
+    - cron: "0 7 * * *"   # 09:00 CEST (nyári időszámítás, márc-okt)
+  workflow_dispatch:
+    inputs:
+      szarazon:
+        description: "Szárazon futtatás (nem küld e-mailt, nem ír DB-be)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: napi-futas
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  futtat:
+    name: Délelőtti javaslatok
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Repó letöltése
+        uses: actions/checkout@v4
+
+      - name: uv telepítése
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Python és függőségek
+        run: uv sync --frozen
+
+      - name: Futás
+        env:
+          # A titkok GitHub Secretsből jönnek. Lásd docs/SECRETS.md.
+          # A repó PUBLIKUS — ezek soha nem kerülhetnek a kódba.
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          EMAIL_FELHASZNALO: ${{ secrets.EMAIL_FELHASZNALO }}
+          EMAIL_APP_JELSZO: ${{ secrets.EMAIL_APP_JELSZO }}
+          EMAIL_CIMZETT: ${{ secrets.EMAIL_CIMZETT }}
+          # Actionsben géppel feldolgozható naplót akarunk
+          TIPPMIX_NAPLO_FORMATUM: json
+        run: |
+          uv run tippmix futtat \
+            --tipus delelott \
+            --ido-ellenorzes \
+            ${{ inputs.szarazon && '--szarazon' || '' }}
+
+      - name: Napló feltöltése hiba esetén
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: naplo-delelott-${{ github.run_id }}
+          path: logs/
+          retention-days: 14
+          if-no-files-found: ignore

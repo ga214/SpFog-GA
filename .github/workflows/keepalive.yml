@@ -1,0 +1,39 @@
+name: Keepalive
+
+# MIÉRT KELL EZ: publikus repóban a GitHub 60 nap inaktivitás után
+# AUTOMATIKUSAN LETILTJA az ütemezett workflow-kat. Ha ez megtörténik, a napi
+# futások csendben leállnak, és csak akkor veszed észre, hogy nem jön levél,
+# amikor már napok óta nem jött.
+#
+# Az "inaktivitás" itt COMMIT-inaktivitást jelent, nem workflow-futást: attól,
+# hogy a napi futás minden nap lemegy, a számláló nem nullázódik.
+#
+# Ez a workflow hetente egyszer üres commitot készít, ezzel nullázva a
+# számlálót.
+
+on:
+  schedule:
+    - cron: "0 3 * * 1"   # minden hétfő 03:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  keepalive:
+    name: Ütemezés életben tartása
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Repó letöltése
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Keepalive commit
+        uses: gautamkrishnar/keepalive-workflow@v2
+        with:
+          committer_username: "github-actions[bot]"
+          committer_email: "github-actions[bot]@users.noreply.github.com"
+          commit_message: "chore: keepalive (az ütemezett workflow-k életben tartása)"

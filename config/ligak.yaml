@@ -1,0 +1,140 @@
+# =============================================================================
+# Engedélyezett bajnokságok
+#
+# A spec 1. lépés 3. pontja: "Csak a konfigban felsorolt sportok és
+# bajnokságok maradnak. Kezdetben: a config/ligak.yaml-ban engedélyezett
+# futball-ligák és az NBA/EuroLeague."
+#
+# Ami itt nincs benne, arra SOHA nem kapsz javaslatot — akkor sem, ha a
+# Tippmix kínálja.
+#
+# `aktiv: false` → a liga ismert, de most nem fogadunk rá (pl. nincs elég
+# adat, vagy nincs xG). Nem töröljük, mert a backteszthez kellhet.
+# =============================================================================
+
+futball:
+  # --- Top 5 liga: Understat xG elérhető 2014/15-től, teljes adatlefedettség
+  - kod: E0
+    nev: "Premier League"
+    orszag: "Anglia"
+    aktiv: true
+    xg_forras: "understat"
+    understat_liga: "EPL"
+    clubelo: true
+
+  - kod: SP1
+    nev: "La Liga"
+    orszag: "Spanyolország"
+    aktiv: true
+    xg_forras: "understat"
+    understat_liga: "La_liga"
+    clubelo: true
+
+  - kod: D1
+    nev: "Bundesliga"
+    orszag: "Németország"
+    aktiv: true
+    xg_forras: "understat"
+    understat_liga: "Bundesliga"
+    clubelo: true
+
+  - kod: I1
+    nev: "Serie A"
+    orszag: "Olaszország"
+    aktiv: true
+    xg_forras: "understat"
+    understat_liga: "Serie_A"
+    clubelo: true
+
+  - kod: F1
+    nev: "Ligue 1"
+    orszag: "Franciaország"
+    aktiv: true
+    xg_forras: "understat"
+    understat_liga: "Ligue_1"
+    clubelo: true
+
+  # --- Másodvonal: football-data.co.uk ad eredményt + záró oddsot,
+  #     de xG nincs ingyen. Kezdetben inaktív, a backteszt dönt róluk.
+  - kod: E1
+    nev: "Championship"
+    orszag: "Anglia"
+    aktiv: false
+    xg_forras: null
+    clubelo: true
+
+  - kod: N1
+    nev: "Eredivisie"
+    orszag: "Hollandia"
+    aktiv: false
+    xg_forras: null
+    clubelo: true
+
+  - kod: P1
+    nev: "Primeira Liga"
+    orszag: "Portugália"
+    aktiv: false
+    xg_forras: null
+    clubelo: true
+
+kosarlabda:
+  - kod: NBA
+    nev: "NBA"
+    aktiv: true
+    stat_forras: "nba_api"
+    # FIGYELEM: a stats.nba.com blokkolja az adatközponti IP-ket.
+    # Lásd docs/OPEN_QUESTIONS.md — Fázis 0 empirikus teszt.
+    adatkozponti_ip_kockazat: true
+    tartalek_forras: "basketball_reference"
+
+  - kod: EL
+    nev: "EuroLeague"
+    aktiv: false
+    stat_forras: "euroleague_api"
+    adatkozponti_ip_kockazat: false
+    # Ingyenes történelmi záró odds gyakorlatilag nem elérhető
+    # → a backteszt korlátozott. Ezért indul inaktívan.
+    tortenelmi_odds_hianyzik: true
+
+# =============================================================================
+# Engedélyezett piacok sportonként
+#
+# Spec 4. lépés: "Első verzióban engedélyezett piacok: 1X2, Gólszám 2.5
+# felett/alatt." Spec 5. lépés: "Összpont felett/alatt, Hendikep."
+#
+# A `masodik_kor` piacok kódja megépül, de a döntési fa 7. pontja
+# (NEM_TAMOGATOTT_PIAC) kiszűri őket, amíg az `aktiv` false.
+# =============================================================================
+
+piacok:
+  futball:
+    - kod: "1X2"
+      nev: "Végeredmény"
+      kimenetelek: ["1", "X", "2"]
+      aktiv: true
+    - kod: "OU25"
+      nev: "Gólszám 2.5"
+      kimenetelek: ["Tobb", "Kevesebb"]
+      aktiv: true
+    - kod: "BTTS"
+      nev: "Mindkét csapat szerez gólt"
+      kimenetelek: ["Igen", "Nem"]
+      aktiv: false          # második kör
+    - kod: "AH"
+      nev: "Ázsiai hendikep"
+      kimenetelek: ["Hazai", "Vendeg"]
+      aktiv: false          # második kör
+
+  kosarlabda:
+    - kod: "TOTAL"
+      nev: "Összpontszám"
+      kimenetelek: ["Tobb", "Kevesebb"]
+      aktiv: true
+    - kod: "SPREAD"
+      nev: "Hendikep"
+      kimenetelek: ["Hazai", "Vendeg"]
+      aktiv: true
+    - kod: "ML"
+      nev: "Győztes"
+      kimenetelek: ["Hazai", "Vendeg"]
+      aktiv: false          # nagy favoritoknál kerülendő (favourite-longshot bias)

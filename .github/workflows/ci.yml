@@ -1,0 +1,66 @@
+name: CI
+
+# Minden push és pull request ellenőrzése: linter, formázás, tesztek.
+#
+# A CI SOHA nem használ titkot. Ha egy teszthez hálózat vagy adatbázis
+# kellene, az `halozat` markert kapja, és a CI kihagyja. Így a CI akkor is
+# lefut, ha egy külső szolgáltatás éppen elérhetetlen.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ellenorzes:
+    name: Lint és tesztek
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Repó letöltése
+        uses: actions/checkout@v4
+
+      - name: uv telepítése
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Python és függőségek
+        run: uv sync --frozen --extra dev
+
+      - name: Linter
+        run: uv run ruff check .
+
+      - name: Formázás ellenőrzése
+        run: uv run ruff format --check .
+
+      - name: Konfiguráció validálása
+        run: uv run tippmix config-ellenorzes
+
+      - name: Tesztek
+        # A hálózatot igénylő teszteket kihagyjuk — a CI ne bukjon el egy
+        # külső szolgáltatás kiesésén.
+        run: uv run pytest -m "not halozat" --cov=tippmix --cov-report=term-missing
+
+  titok-szures:
+    name: Titok-szűrés
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Repó letöltése
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks
+        # A repó PUBLIKUS. Egy véletlenül commitolt kulcs azonnal
+        # kompromittált. Ez a lépés minden commitot átvizsgál.
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

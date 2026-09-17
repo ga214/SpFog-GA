@@ -1,0 +1,139 @@
+# =============================================================================
+# Tippmix tipprendszer — központi konfiguráció
+#
+# SZABÁLY: a kódban SEHOL nem lehet beégetett szám. Minden küszöb, súly és
+# limit ebben a fájlban él.
+#
+# BIZTONSÁG: ebben a fájlban SOHA nem lehet jelszó, API-kulcs vagy e-mail-
+# jelszó. Azok a .env fájlba (a .gitignore-ban) és GitHub Secretsbe mennek.
+# Lásd: docs/SECRETS.md
+#
+# A "Specifikáció" jelölésű blokkok értékei szó szerint a döntési logika
+# specifikáció "Konfiguráció" szakaszából származnak. A backteszt fogja őket
+# véglegesíteni — lásd docs/OPEN_QUESTIONS.md.
+# =============================================================================
+
+# --- Specifikáció szerint ---------------------------------------------------
+bankroll:
+  induló_ft: 50000
+  aktuális_ft: 50000          # kézzel frissíted, vagy a napló számolja
+
+tét:
+  kelly_hányad: 0.25          # negyed-Kelly
+  min_ft: 200
+  max_ft: 5000
+  max_bankroll_százalék: 0.04 # egy tippre max a bankroll 4%-a
+  kerekítés_ft: 100
+
+napi_limit:
+  max_tipp_db: 6
+  max_kitettség_bankroll_százalék: 0.10
+  max_kombináció_db: 2
+
+küszöb:
+  min_edge_délelőtt: 0.05     # 5 százalékpont
+  min_edge_este: 0.035
+  min_ev: 0.03                # 3% várható hozam
+  min_odds: 1.30
+  max_odds: 6.00
+  max_eltérés_referenciától: 0.08
+
+modell:
+  zsugorítás_w: 0.35          # mennyit ér a saját modell a piaci árhoz képest
+  dixon_coles_xi: 0.0035      # időbeli súlyozás
+  min_meccs_csapatonként: 12
+  modell_max_kor_nap: 8
+
+kombináció:
+  max_láb: 3
+  min_láb_edge: 0.05
+  tét_szorzó: 0.5             # a kombináció tétje a Kelly-érték fele
+
+futás:
+  délelőtt_cet: "09:00"
+  este_cet: "18:00"
+  min_perc_kezdésig: 45
+
+# =============================================================================
+# Az alábbiak NEM szerepelnek a specifikáció "Konfiguráció" szakaszában, de a
+# specifikáció szövegtörzsében leírt viselkedéshez szükségesek. Forrás minden
+# blokknál megjelölve.
+# =============================================================================
+
+# --- 1. lépés: esemény-begyűjtés (spec: "Döntések ebben a lépésben" 1. pont) --
+gyujtes:
+  ujraprobalkozas_db: 3
+  ujraprobalkozas_szunet_mp: 30
+  keres_idokorlat_mp: 30
+  # Alacsony frekvenciájú, tiszteletteljes lekérés (kutatási jelentés, Caveats)
+  keresek_kozti_szunet_mp: 1.0
+  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) TippmixTipprendszer/0.1"
+  nyers_mentes_konyvtar: "data/raw"
+  kezi_tartalek_konyvtar: "data/manual"
+
+# --- 2. lépés: névillesztés (spec 2. lépés) ---------------------------------
+nevillesztes:
+  alias_csv: "data/team_aliases.csv"
+  liga_csv: "data/league_map.csv"
+  # A fuzzy találat CSAK javaslat, soha nem használjuk fel automatikusan.
+  # Ez a küszöb azt szabja meg, mi kerül be a levél "Ismeretlen csapatok"
+  # szakaszába javaslatként.
+  javaslat_min_pontszam: 80
+
+# --- 8. lépés: hírvétó (spec: "Fontos korlát") ------------------------------
+hirveto:
+  # Ha a hírforrás nem elérhető, nem vétózunk vakon, hanem a napszaki
+  # küszöböt megemeljük ennyiszeresére:
+  hianyzo_forras_kuszob_szorzo: 1.5
+  # "Kulcsjátékos" = az elmúlt N meccs játékperceiből származó top-K játékos.
+  # Nem szubjektív megítélés.
+  kulcsjatekos_ablak_meccs: 10
+  kosar_top_k_percatlag: 2
+  foci_top_k_mezonyjatekos: 2
+
+# --- 10. lépés: kombináció (spec 10. lépés 9. pont) -------------------------
+platform:
+  # Tippmix Pro nyereményplafon egységnyi fogadásonként (kutatási jelentés 2.)
+  max_nyeremeny_ft: 2000000
+  min_tet_ft: 100
+  max_tet_ft: 100000
+
+# --- 12. lépés: automatikus leállítási feltételek ---------------------------
+leallitas:
+  bankroll_eses_szazalek: 0.30       # a csúcshoz képest
+  clv_min_minta: 50                  # ennyi tipp után nézzük a CLV-t
+  adathiany_egymas_utani_futas: 3
+  brier_romlas_hetek: 2
+
+# --- Időkezelés -------------------------------------------------------------
+# MINDEN időbélyeg UTC-ben tárolódik. A CET/CEST konverzió KIZÁRÓLAG a
+# megjelenítésnél (e-mail) történik. A GitHub Actions cron UTC-ben fut, a
+# nyári időszámítás miatt két cron-bejegyzés van workflow-nként; a kód
+# ellenőrzi, hogy az aktuális futás a helyes CET-időpontban van-e.
+ido:
+  tarolas_zona: "UTC"
+  megjelenites_zona: "Europe/Budapest"
+  # Tűréshatár: ha a cron a DST miatt 1 órát csúszna, a futás kihagyja magát
+  cron_turés_perc: 75
+
+# --- Naplózás ---------------------------------------------------------------
+naplozas:
+  szint: "INFO"                # DEBUG | INFO | WARNING | ERROR
+  formatum: "konzol"           # konzol | json  (Actionsben: json)
+  fajl_konyvtar: "logs"
+  hibalevel_kuldese: true
+
+# --- Adattár ----------------------------------------------------------------
+adattar:
+  backend: "supabase"
+  # A backteszt lokális Parquet-cache-t használ, hogy ne olvasson több
+  # százezer sort hálózaton keresztül. A Supabase marad az igazságforrás.
+  cache_konyvtar: "data/cache"
+  cache_max_kor_ora: 24
+
+# --- E-mail (csak a nem-titkos rész; a jelszó a .env-ben) -------------------
+email:
+  felado_nev: "Tippmix tipprendszer"
+  smtp_host: "smtp.gmail.com"
+  smtp_port: 587
+  targy_elotag: "Tippmix javaslatok"

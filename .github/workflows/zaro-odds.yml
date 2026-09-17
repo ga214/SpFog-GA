@@ -1,0 +1,57 @@
+name: Záró szorzók gyűjtése
+
+# A CLV (closing line value) méréséhez kezdés előtt kb. 5 perccel újra le kell
+# kérni a Tippmix szorzóját minden javasolt tippre:
+#
+#     CLV = (odds_javaslatkor / zaro_odds) - 1
+#
+# MIÉRT EZ A LEGFONTOSABB SZÁM? Mert a nyereség rövid távon szinte teljesen a
+# szerencsén múlik, a CLV viszont nem. Ha 100 fogadáson átlagosan pozitív a
+# CLV, a rendszer TÉNYLEG előbb látja meg az információt, mint a piac.
+#
+# ÜTEMEZÉS: óránként fut, és minden körben azokat a tippeket frissíti, amiknek
+# a meccse a következő órában kezdődik. Így nem kell meccsenként külön
+# ütemezni, és a cron 15+ perces késése sem okoz gondot.
+#
+# KÖLTSÉG: a repó publikus → korlátlan Actions-perc. Ha valaha privátra
+# váltanánk, ezt ritkítani kell (napi 24 futás × ~2 perc = ~1400 perc/hó).
+
+on:
+  schedule:
+    - cron: "10 * * * *"   # minden óra 10. percében
+  workflow_dispatch:
+
+concurrency:
+  group: zaro-odds
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  gyujtes:
+    name: Záró szorzók
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Repó letöltése
+        uses: actions/checkout@v4
+
+      - name: uv telepítése
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Python és függőségek
+        run: uv sync --frozen
+
+      - name: Záró szorzók begyűjtése
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          EMAIL_FELHASZNALO: ${{ secrets.EMAIL_FELHASZNALO }}
+          EMAIL_APP_JELSZO: ${{ secrets.EMAIL_APP_JELSZO }}
+          EMAIL_CIMZETT: ${{ secrets.EMAIL_CIMZETT }}
+          TIPPMIX_NAPLO_FORMATUM: json
+        run: uv run tippmix zaro-odds
