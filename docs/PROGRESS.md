@@ -7,6 +7,72 @@ bejegyzés: mit csináltunk, miért, mi működik, mi nem, mi a következő lép
 
 ---
 
+## 2026-09-18 — GitHub repó élesítve, Fázis 0 elindult (odds-végpont felderítés)
+
+### Mit csináltunk
+
+**Infrastruktúra lezárva:**
+- Supabase séma sikeresen lefuttatva (a `tippek_egyedi_napi_idx` IMMUTABLE-hibáját
+  javítottuk: `idopont_utc::date` → `(idopont_utc AT TIME ZONE 'UTC')::date`)
+- GitHub repó létrehozva és felpusholva: **github.com/ga214/SpFog-GA** (publikus)
+- GitHub Secrets beállítva (5 db), próba-workflow (esti-futas, szárazon) sikeres
+- CI-hiba javítva: a `gitleaks-action` az első push-nál elhasalt (nem talált
+  semmit, csak a commit-tartomány számítása tört el `before` SHA hiányában) —
+  áttértünk a gitleaks CLI közvetlen hívására, ami mindig a teljes historyt nézi
+- `.claude/settings.json` (projekt- és felhasználói szinten) `bypassPermissions`
+  módra állítva a CLAUDE.md 1. elve szerint; a VS Code extension felületén
+  emellett külön `/config permissionMode=dontAsk` is szükséges volt — a
+  settings.json önmagában nem elég ebben a kliensben
+
+**Fázis 0 elindult — Tippmix odds-végpont felderítése:**
+
+A felhasználó munkahelyi gépéről az IT-szabályzat tiltja a tippmixpro.hu
+elérését, ezért a felderítést Claude végezte kiszolgáló-oldali HTTP-hívásokkal
+(`curl`, `WebFetch`), ismeretlen (feltehetően nem magyar, esetleg adatközponti)
+IP-ről.
+
+**Eredmény — részletek: [docs/OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) NY-11, NY-12.**
+
+Röviden:
+- A `www.tippmixpro.hu` és a `sports2.tippmixpro.hu` mindkettő **elérhető
+  kívülről**, nincs látható geo/bot-blokk a sima oldal-lekérésnél
+- A `sports2.tippmixpro.hu/robots.txt`: `Disallow:` — semmi nincs tiltva
+- **A kutatási jelentés által feltételezett egyszerű JSON REST-végpont NEM
+  található.** Az odds-adat **WebSocket-en** (`wss://sportsapi.tippmixpro.hu/v2`)
+  érkezik, saját (nem socket.io) keretezéssel. Megvan az operátor-azonosító
+  (`ucsOperatorId: 2901`) és a realm (`www.tippmixpro.hu`), de a WS-üzenetek
+  pontos formátuma nem deríthető ki szerveroldali HTTP-kliensből — ehhez
+  éles böngészőben kell figyelni a WS-forgalmat, vagy Playwright-tal
+  programozottan elcsípni (`page.on("websocket")`)
+
+### Mi nem működik még
+
+- A WS-protokoll formátuma ismeretlen → **az 1. lépés (esemény-begyűjtés)
+  továbbra sem írható meg**
+- Nincs teszt arra, hogy a GitHub Actions runner IP-je blokkolva van-e — csak
+  azt tudjuk, hogy NEM minden külső IP van blokkolva
+
+### A következő lépés
+
+Két párhuzamos út, bármelyikkel folytatható:
+
+1. **Playwright-tal programozott WS-lehallgatás** — nem kell kézzel
+   reverse engineerelni a protokollt, a böngésző motorja csinálja, mi csak
+   figyeljük az üzeneteket. Ez lehet, hogy közvetlenül a végleges
+   scraper-megoldás lesz, nem csak felderítés.
+2. **A felhasználó otthoni gépéről vagy telefonjáról** (nem a tiltott
+   munkahelyi hálózatról) böngésző Network fülén WS-forgalom megnézése —
+   gyorsabb, ha van rá alkalom, de nem feltétlenül szükséges, ha az 1. út
+   működik.
+
+Mivel a Playwright már szerepel a függőségek között, valószínűleg ez az
+egyszerűbb és véglegesebb megoldás — a következő menetben ezt érdemes
+kipróbálni: egy kis Python-szkript, ami Playwright-tal megnyitja a
+`sports2.tippmixpro.hu/hu` oldalt, és kiírja az összes WS-üzenetet fájlba
+elemzésre.
+
+---
+
 ## 2026-09-17 — Fejlesztői környezet felállítása (Fázis −1)
 
 ### Mit csináltunk

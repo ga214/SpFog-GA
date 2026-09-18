@@ -164,24 +164,94 @@ birtoklásra, amit a pace-szel szorozva pontszámot kapunk.
 
 ## Infrastrukturális bizonytalanságok
 
-### NY-11 — A Tippmix odds-végpont pontos útvonala · NYITOTT — BLOKKOLÓ
+### NY-11 — A Tippmix odds-végpont pontos útvonala · FOLYAMATBAN — BLOKKOLÓ
 
 **Ez blokkolja az 1. lépést, tehát az egész rendszert.**
 
-- A kutatás szerint `sports2.tippmixpro.hu`, JSON-nal, numerikus eventId
-  szerint, `markets[]` → `outcomes[]` → `{name, side, odds}` szerkezettel
-- **A pontos nyers végpontok nem publikusak**
-- Mit kell tenni: böngésző hálózati fülén kideríteni
-- Mikor: **Fázis 0, az első feladat**
+**2026-09-18-i felderítés eredménye** (a felhasználó munkahelyi gépéről nem
+volt elérhető az oldal — IT-szabályzat tiltja —, ezért a felderítést a
+Claude-munkamenet kiszolgáló-oldali `curl`/`WebFetch` hívásai végezték,
+tehát ismeretlen, nem magyar, feltehetően adatközponti IP-ről):
 
-### NY-12 — Blokkolja-e a Tippmix a GitHub Actions IP-ket? · NYITOTT
+- A `tippmixpro.hu` egy Akamai CDN mögötti, szerveroldalon renderelt (SSR)
+  React-alkalmazás. A `www.tippmixpro.hu` **200 OK-t adott kívülről is**,
+  nincs látható geo-blokk a fő oldalon.
+- A sportfogadási rész egy **iframe**, ami a `sports2.tippmixpro.hu/hu`
+  oldalt tölti be. Ez is **200 OK-t adott kívülről**,
+  `Access-Control-Allow-Origin: *` fejléccel (szándékosan nyitott CORS).
+- A `sports2.tippmixpro.hu/robots.txt` tartalma: `User-agent: * / Disallow:`
+  — **semmilyen bot semmilyen útvonalon nincs tiltva.**
+- **A várt egyszerű JSON REST-végpont (amit a kutatási jelentés feltételezett)
+  NEM létezik ebben a formában.** Ehelyett:
+  - Az oldal konfigurációja: `apiConfig.host = "https://sports-api.everymatrix.com"`,
+    `sportsApiConfig.ucsOperatorId = 2901` (a Tippmix Pro operátor-azonosítója
+    az EveryMatrix rendszerben), `webApi.realm = "www.tippmixpro.hu"`.
+  - A tényleges élő odds-adat **WebSocket-en (`wss://sportsapi.tippmixpro.hu/v2`)
+    érkezik**, egy saját, nem szabványos protokollon (`reconnectDetails`,
+    `onQuotaLimitHandler`, `onChallengeHandler` mintákkal a kliens kódban) —
+    ez NEM sima socket.io vagy egyszerű pub/sub, hanem egyedi keretezés.
+  - A kliens JS-ben (`chunk.source~main.js`, 3,8 MB) nem található közvetlen
+    REST-URL-minta az odds-listára; a `.get("odds-*")` hívások widget-
+    konfigurációt kérnek le (pl. `.get("odds-banner")`), nem eseményadatot.
+  - **Nem sikerült publikus dokumentáció vagy kódrészlet nélkül
+    rekonstruálni a WS-handshake pontos formátumát** (autentikáció,
+    subscribe-üzenet formátuma, az `operatorId`-n és a `realm`-en túl mit
+    kell még küldeni).
 
-- A nyilvános odds-oldalak külföldről is láthatók (a kutatás szerint)
-- De a testvéroldal `tippmix.hu` **aktívan blokkol IP alapján**
-- **Nem verifikálható publikusan** — empirikusan tesztelni kell
-- Ha blokkolt: a scraping a felhasználó windowsos gépére kerül (önhosztolt
-  runner vagy Task Scheduler)
-- Mikor: Fázis 0
+**Következmény a tervre:** a kutatási jelentés "JSON, numerikus eventId,
+markets[]→outcomes[]" feltételezése **valószínűleg elavult vagy pontatlan**
+volt — lehet, hogy egy régebbi platformverzióra vonatkozott, vagy a
+`Apify caleno/tippmixpro-odds-scraper` más, nem publikus végpontot használ,
+amit reverse engineeringgel derített ki (böngésző Network fülén, valódi
+felhasználói munkamenetben, ahol a WS-forgalom is látszik JSON-üzenetenként).
+
+**Amit még ki kell deríteni, és HOGYAN:**
+
+1. **A WS-protokoll pontos üzenetformátuma.** Ehhez egy éles böngészőben,
+   Network fülön (WS tab) kell figyelni a `wss://sportsapi.tippmixpro.hu/v2`
+   forgalmát — ez `curl`-lal vagy szerveroldali fetch-csel nem deríthető ki,
+   mert a WS handshake és az azt követő üzenetek bináris/JSON keretezése
+   böngészőn kívül nem triviálisan reprodukálható. **Ez a felhasználó
+   munkahelyi gépéről nem megy** (IT-tiltás) — otthoni gépről vagy
+   telefonról (mobilnetről, ha az oldal ott elérhető) kellene megnézni.
+2. **Alternatíva: a Playwright-alapú headless böngésző út.** Mivel a
+   `pyproject.toml` már tartalmazza a Playwright-ot tartaléknak, ez lehet
+   az elsődleges megoldás, nem a tartalék: egy fejnélküli Chromium
+   megnyitja az oldalt, végrehajtja a JS-t, és a WS-üzeneteket a
+   `page.on("websocket")` eseménnyel el lehet csípni programozottan —
+   így nem kell a protokollt kézzel reverse engineeringelni, a böngésző
+   csinálja meg helyettünk, mi csak "hallgatózunk". Ez lassabb és
+   erőforrás-igényesebb, mint egy sima HTTP GET, de megbízhatóbb, mint
+   egy félig kitalált WS-kliens.
+3. **A meglévő Apify-scraper tanulmányozása** (`caleno/tippmixpro-odds-scraper`)
+   — ha publikus a forráskódja vagy legalább a dokumentációja, abból
+   kiderülhet, hogy REST-et vagy WS-t használ, és ha REST-et, milyen
+   végpontot.
+
+**Mikor:** Fázis 0, folytatás — jelenleg itt tartunk.
+
+### NY-12 — Blokkolja-e a Tippmix a GitHub Actions IP-ket? · RÉSZBEN LEZÁRVA (2026-09-18)
+
+- **A fő domain (`www.tippmixpro.hu`) és a `sports2.tippmixpro.hu` NEM
+  blokkolt** ismeretlen, feltehetően adatközponti IP-ről sem — mindkettő
+  200 OK-t adott egy Claude-munkamenet szerveroldali HTTP-kliensének
+  kéréseire, semmilyen Cloudflare/Akamai bot-kihívás vagy geo-tiltás nem
+  jelentkezett a sima oldal-lekéréseknél.
+- **Ez még NEM bizonyítja, hogy a WS-végpont (`wss://sportsapi.tippmixpro.hu/v2`)**
+  is ugyanígy elérhető-e — a WS-handshake más védelmi réteget kaphat, ezt
+  külön kell tesztelni, ha kiderül a protokoll formátuma.
+- **Ez sem magyar IP-ről történt teszt** — tehát a "fogadás Magyarországra
+  korlátozott" kutatási megállapítás (a beléptetés/fogadás szintjén) itt
+  nem cáfolható vagy erősíthető meg, csak az, hogy a puszta oldal-lekérés
+  nem geo-blokkolt.
+- **Tényleges GitHub Actions runner IP-ről még nem volt teszt** — a fenti
+  csak azt mutatja, hogy NEM minden külső/adatközponti IP van blokkolva,
+  de a GitHub Actions IP-tartományai specifikusan lehetnek feketelistán,
+  amit csak egy tényleges Actions-workflow-futással lehet kizárni.
+- Ha a WS-út túl bonyolultnak bizonyul, vagy blokkolva lesz Actionsből:
+  a scraping a felhasználó windowsos gépére kerül (önhosztolt runner vagy
+  Task Scheduler) — ez már a terv része volt.
+- Mikor: Fázis 0, folytatás
 
 ### NY-13 — A `stats.nba.com` adatközponti IP-blokkja · NYITOTT
 
