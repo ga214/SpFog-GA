@@ -7,6 +7,100 @@ bejegyzés: mit csináltunk, miért, mi működik, mi nem, mi a következő lép
 
 ---
 
+## 2026-09-18 (6) — Fázis 2: Dixon-Coles + backteszt. A MODELL NEM VERI A PIACOT.
+
+### A lényeg elöl
+
+A specifikáció ezt írta: *„A 2. és 3. fázis a lényeg. Ha ezeken átjutunk és a
+backteszt nem mutat pozitív CLV-t, akkor a 4-6. fázist nem érdemes megépíteni
+ebben a formában."*
+
+**A backteszt lefutott, és a válasz: a jelenlegi modell nem ver piacot.**
+
+Mind az 5 ligán, a 2024/25-ös szezonon, walk-forward módon (heti
+újrailleszéssel, kizárólag a meccs előtti adatokból):
+
+| Liga | Jelöltek | Brier: modell | zsugorított | **PIAC** |
+| --- | --- | --- | --- | --- |
+| E0 | 1840 | 0,2147 | 0,2115 | **0,2112** |
+| SP1 | 1840 | 0,2138 | 0,2074 | **0,2055** |
+| D1 | 1413 | 0,2154 | 0,2089 | **0,2073** |
+| I1 | 1785 | 0,2167 | 0,2101 | **0,2084** |
+| F1 | 1528 | 0,2137 | 0,2089 | **0,2081** |
+
+A Brier alacsonyabb = jobb. **A piac minden ligában nyer.**
+
+A döntő teszt viszont nem is a Brier, hanem ez: ahol a modell 3%-nál nagyobb
+élt talált, mi történt valójában?
+
+| Liga | Modell becslése | Piac becslése | **Tényleges** | n |
+| --- | --- | --- | --- | --- |
+| E0 | 41,6% | 37,4% | **37,1%** | 167 |
+| SP1 | 44,9% | 40,5% | **35,0%** | 177 |
+| D1 | 48,0% | 43,2% | **39,0%** | 141 |
+| I1 | 47,7% | 43,3% | **38,5%** | 195 |
+| F1 | 45,4% | 40,8% | **43,6%** | 149 |
+
+**Négy ligában a tényleges gyakoriság a piac becsléséhez van közelebb (vagy
+még az alá esik), nem a miénkhez.** Ahol a modell élt lát, ott jellemzően
+nincs él — a modell téved, nem a piac. Az egyetlen kivétel a Ligue 1, de egy
+liga egy szezonja nem bizonyíték, hanem zaj.
+
+Egységnyi téttel a Premier League-en: **ROI −7,3%** 158 fogadáson. Ez
+összhangban van a kutatási jelentés figyelmeztetésével (egy 2023/24-es PL
+backtesztben a tiszta Dixon-Coles −15,4% ROI-t hozott).
+
+### Mit csináltunk
+
+- [modellek/futball.py](../src/tippmix/modellek/futball.py) — teljes
+  Dixon-Coles: idősúlyozott ML-illesztés ligánként, τ-korrekció,
+  eredménymátrix, piaci valószínűségek. Mind az 5 liga konvergál 2-3 mp alatt.
+- [backteszt/keret.py](../src/tippmix/backteszt/keret.py) — walk-forward
+  keret: heti újrailleszés, adatelégségességi kapu, vig-eltávolítás, piaci
+  zsugorítás, kiértékelés.
+- **33 + új tesztek**, összesen **153 zöld**.
+
+### Amit a számok NEM mondanak — két fontos korlát
+
+**1. A „CLV = 0,0% pozitív" mérési műtermék, nem eredmény.** A történelmi
+adatunkban **csak záró odds van, nyitó nincs**. A rendszer élesben a meccs
+előtti áron fogadna és a záróhoz mérné a CLV-t; itt viszont ugyanaz az ár a
+fogadási ár és a referencia, így a „CLV" definíció szerint a margó
+negatívja (−3,6%). Ezért **ez a backteszt nem CLV-t mér, hanem
+valószínűség-minőséget** — és abban is veszít a modell. A korlát a
+`keret.py` docstringjében is rögzítve.
+
+**2. Ez a modell szándékosan csupasz.** Nincs benne xG (az Understat-adat
+letöltése még nem készült el), nincs Elo (a ClubElo API halott, NY-20), és
+nincs kalibrációs réteg (izotonikus regresszió, Fázis 3). A spec maga írja:
+*„a nyers modell önmagában nem elég, a nyereség a kalibrációból, a piaci
+zsugorításból és a szigorú szűrésből jön."*
+
+A piaci zsugorítás egyébként **bizonyítottan segít** (0,2147 → 0,2115), csak
+épp nem tud a piacnál jobb lenni — ami matematikailag várható, ha a piac felé
+húzunk valamit, ami rosszabb a piacnál.
+
+### A következő lépés — döntési pont, nem automatizmus
+
+Ez most **a felhasználó döntése**, nem technikai kérdés. Három út:
+
+1. **Fázis 3 rendesen** — xG-jellemzők (Understat), izotonikus kalibráció,
+   `w` és `ξ` rácskeresés. Ez a spec szerinti út; a jelenlegi eredmény a
+   *nyers* modellé, ami a spec szerint önmagában nem is elég. Reális esély
+   van javulásra, de garancia nincs.
+2. **Leállni** — a spec becsületes kilépési pontja. Az eddigi munka nem
+   veszett el: az adatgyűjtés, a Tippmix-integráció és a mérőkeret működik.
+3. **Szűkíteni** — csak azokat a piacokat/ligákat tartani, ahol a modell nem
+   veszít (pl. F1), és kis téttel élesíteni. **Ezt nem javaslom:** egy liga
+   egy szezonja statisztikailag zaj, és pont ez a fajta utólagos válogatás
+   gyártja a hamis magabiztosságot.
+
+Az 1. utat javaslom, azzal a kikötéssel, hogy a Fázis 3 után **újra
+megnézzük ugyanezt a táblázatot**, és ha akkor sem veri a piacot, akkor a
+2. út következik.
+
+---
+
 ## 2026-09-18 (5) — Fázis 1: történelmi adatok letöltve (9110 meccs)
 
 ### Mit csináltunk
