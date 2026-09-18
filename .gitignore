@@ -17,6 +17,9 @@ data/manual/
 data/cache/
 # Illesztett modellek (bináris, regenerálható)
 data/models/
+# Letöltött történelmi meccsadat (nagy, regenerálható:
+# `uv run tippmix tortenelmi-letoltes`; a forrás adata, nem a miénk)
+data/tortenelmi/
 
 # A leképezési táblák VISZONT verziózva vannak — ezek kézi munka eredményei:
 !data/team_aliases.csv

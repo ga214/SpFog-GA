@@ -103,6 +103,7 @@ uv run tippmix futtat --tipus delelott     # délelőtti futás
 uv run tippmix futtat --tipus este         # esti futás
 uv run tippmix futtat --szarazon --smoke   # smoke: nincs e-mail, nincs DB
 uv run tippmix zaro-odds                   # záró szorzók a CLV-hez
+uv run tippmix tortenelmi-letoltes         # történelmi meccsadat a modellezéshez
 uv run pytest                              # teljes tesztkészlet
 uv run pytest -m smoke                     # csak smoke-tesztek
 uv run ruff check . ; uv run ruff format . # lint + formázás

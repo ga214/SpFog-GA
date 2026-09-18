@@ -7,6 +7,92 @@ bejegyzés: mit csináltunk, miért, mi működik, mi nem, mi a következő lép
 
 ---
 
+## 2026-09-18 (5) — Fázis 1: történelmi adatok letöltve (9110 meccs)
+
+### Mit csináltunk
+
+Megírtuk a Fázis 1 letöltőjét
+([gyujtes/tortenelmi.py](../src/tippmix/gyujtes/tortenelmi.py)) és a hozzá
+tartozó CLI-parancsot:
+
+```
+uv run tippmix tortenelmi-letoltes
+```
+
+**Eredmény — mind az 5 aktív liga, 6 szezon (2021/22 – 2026/27):**
+
+| Liga | Meccsek | Időszak |
+| --- | --- | --- |
+| E0 (Premier League) | 1940 | 2021-08-13 … 2026-09-14 |
+| SP1 (La Liga) | 1959 | 2021-08-13 … 2026-09-17 |
+| D1 (Bundesliga) | 1557 | 2021-08-13 … 2026-09-13 |
+| I1 (Serie A) | 1940 | 2021-08-21 … 2026-09-14 |
+| F1 (Ligue 1) | 1714 | 2021-08-06 … 2026-09-13 |
+| **Összesen** | **9110** | |
+
+Az adat `data/tortenelmi/<liga>.parquet` alá kerül (gitignore-olva,
+regenerálható).
+
+### Adatminőség — ez a lényeg
+
+**Nulla hiányzó záró odds** mind a 9110 meccsen, 1X2-re és gólszámra
+egyaránt. Ez azért kritikus, mert a **záró odds a CLV mércéje** — a projekt
+sikerkritériuma. Ha ez hiányos lenne, a backteszt egy nem létező
+referenciához mérne.
+
+Az overround-ellenőrzés is tiszta: átlag **1,0306** (3,1% margó, jellemző a
+Pinnacle-re), minimum 1,0005, és **nincs 1,0 alatti sor** — ha lenne, az
+arbitrázst jelentene, ami valós piacon nem fordul elő, tehát adathibára
+utalna.
+
+### Két akadály, amit megoldottunk
+
+**1. A `soccerdata` nem importálható Python 3.12-n.** Az egyik tranzitív
+függősége (`undetected-chromedriver`) a `distutils`-t importálja, amit a 3.12
+eltávolított — emiatt a csomag **egyetlen almodulja sem** volt betölthető. A
+javítás: `setuptools` felvétele explicit függőségként, ami visszaadja a
+`distutils`-t. Egysoros javítás, de enélkül az egész Fázis 1 blokkolt.
+
+**2. A Pinnacle rövidítése következetlen a forrásban.** Az 1X2-ben `PS`
+(`PSCH`), a gólszámban `P` (`PC>2.5`). Ez a football-data.co.uk sajátossága;
+a kód `_IRODA_OU_ALIAS`-szal kezeli. A Pinnacle gólszám-oszlopában ráadásul
+van hiány (a 2023/24-es PL-ben 7 meccsen), ezért soronkénti visszaesés van a
+B365-re — nem oszloponkénti, hanem **cellánkénti**, hogy egyetlen hiányzó
+érték se veszítsen el egy egész meccset.
+
+### Mi működik
+
+```
+uv run tippmix tortenelmi-letoltes  → 9110 meccs, 5 liga
+uv run pytest                       → 120 passed (108 → 120)
+```
+
+12 új teszt, hálózat nélkül: szezonkód-számítás (az augusztusi szezonfordulóval
+és az évszázadfordulóval), a záró odds kiolvasása, a tartalék-irodára esés, a
+hiányos meccsek eldobása.
+
+### Eltérés a specifikációtól — szándékos
+
+A spec a Fázis 1-re „SQLite-ba töltése" ír. **Parquet-et használunk**, mert:
+a felhasználó Supabase-t választott igazságforrásnak (a spec SQLite-ja még a
+döntés előtti állapot), a modellillesztés úgyis a teljes táblát olvassa
+egyben, és a `settings.yaml` `adattar` blokkja eleve Parquet-cache-t ír elő a
+backteszthez. A Supabase-be töltés akkor lesz aktuális, amikor a *futási*
+eredményeket naplózzuk — az a 12. lépés, nem ez.
+
+### A következő lépés
+
+**Fázis 2** — a spec szerint ez és a Fázis 3 „a lényeg":
+Dixon-Coles illesztés + eredménymátrix + backteszt-keretrendszer. Ha ezen
+átjutunk és a backteszt nem mutat pozitív CLV-t, a 4-6. fázist nem érdemes
+megépíteni ebben a formában.
+
+Ehhez még kellenek a 3. lépés jellemzői (xG az Understatból, ClubElo) — ezek
+`NotImplementedError`-ral várnak a `tortenelmi.py`-ban, és a Fázis 2 elején
+készülnek el.
+
+---
+
 ## 2026-09-18 (4) — A Tippmix-forgalom kizárólag Actionsből indulhat
 
 ### Miért

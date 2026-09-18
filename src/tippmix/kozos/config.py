@@ -164,6 +164,13 @@ class Adattar(BaseModel):
     cache_max_kor_ora: int = Field(gt=0)
 
 
+class Tortenelmi(BaseModel):
+    szezonok_szama: int = Field(gt=0)
+    konyvtar: str
+    zaro_odds_iroda: str
+    zaro_odds_tartalek: str
+
+
 class Email(BaseModel):
     felado_nev: str
     smtp_host: str
@@ -189,6 +196,7 @@ class Beallitasok(BaseModel):
     ido: Ido
     naplozas: Naplozas
     adattar: Adattar
+    tortenelmi: Tortenelmi
     email: Email
 
     def tet_plafon_ft(self) -> int:
@@ -231,6 +239,9 @@ class FutballLiga(BaseModel):
     aktiv: bool
     xg_forras: str | None = None
     understat_liga: str | None = None
+    # A liga azonosítója a soccerdata wrapperben ("ENG-Premier League").
+    # None, ha nem derítettük ki — ilyenkor a liga nem tölthető le.
+    soccerdata_liga: str | None = None
     clubelo: bool = False
 
 

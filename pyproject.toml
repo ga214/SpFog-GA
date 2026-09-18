@@ -19,6 +19,10 @@ dependencies = [
 
     # --- Adatforrások ---
     "soccerdata>=1.8",        # FBref, Understat, ClubElo, football-data.co.uk wrapper
+    # A soccerdata egyik tranzitív függősége (undetected-chromedriver) a
+    # `distutils`-t importálja, amit a Python 3.12 eltávolított. A setuptools
+    # visszaadja. Enélkül a soccerdata SEMMILYEN almodulja nem importálható.
+    "setuptools>=69.0",
     "understatapi>=0.7",      # xG 2014/15-től
     "nba_api>=1.4",           # NBA statisztika (FIGYELEM: adatközponti IP-t blokkolhat)
     "euroleague-api>=0.1",    # EuroLeague / EuroCup

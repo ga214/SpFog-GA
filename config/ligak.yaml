@@ -25,6 +25,7 @@ futball:
     aktiv: true
     xg_forras: "understat"
     understat_liga: "EPL"
+    soccerdata_liga: "ENG-Premier League"
     clubelo: true
 
   - kod: SP1
@@ -34,6 +35,7 @@ futball:
     aktiv: true
     xg_forras: "understat"
     understat_liga: "La_liga"
+    soccerdata_liga: "ESP-La Liga"
     clubelo: true
 
   - kod: D1
@@ -43,6 +45,7 @@ futball:
     aktiv: true
     xg_forras: "understat"
     understat_liga: "Bundesliga"
+    soccerdata_liga: "GER-Bundesliga"
     clubelo: true
 
   - kod: I1
@@ -52,6 +55,7 @@ futball:
     aktiv: true
     xg_forras: "understat"
     understat_liga: "Serie_A"
+    soccerdata_liga: "ITA-Serie A"
     clubelo: true
 
   - kod: F1
@@ -61,6 +65,7 @@ futball:
     aktiv: true
     xg_forras: "understat"
     understat_liga: "Ligue_1"
+    soccerdata_liga: "FRA-Ligue 1"
     clubelo: true
 
   # --- Másodvonal: football-data.co.uk ad eredményt + záró oddsot,

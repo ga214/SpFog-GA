@@ -326,3 +326,72 @@ felhasználó kifejezett kérésére használható.
 **Hatókör:** ez a megkötés a Tippmixre vonatkozik. A többi adatforrás
 (football-data.co.uk, Understat, ClubElo, NBA) nem szerencsejáték-oldal, azokat
 nem érinti — a Fázis 1 történelmi adatgyűjtése tehát futhat lokálisan is.
+
+---
+
+## D-012 — A történelmi adat Parquet-ben, nem SQLite-ban
+
+**Dátum:** 2026-09-18
+**Döntéshozó:** Claude
+
+**A kérdés:** a specifikáció „Fejlesztési sorrend" táblázata a Fázis 1-re
+„Történelmi adatok letöltése, **SQLite-ba** töltése (foci)" ír. Kövessük?
+
+**Miért tértünk el:**
+
+1. **A spec SQLite-ja a Supabase-döntés előtti állapot.** A felhasználó
+   később Supabase-t választott igazságforrásnak — a `settings.yaml`
+   `adattar.backend: "supabase"`. Egy harmadik tároló (SQLite) beékelése
+   csak zavart okozna.
+2. **A `settings.yaml` eleve Parquet-cache-t ír elő** a backteszthez
+   (`adattar.cache_konyvtar`), épp azért, hogy ne olvassunk százezer sort
+   hálózaton keresztül.
+3. **A hozzáférési minta oszlopos, nem soros.** A Dixon-Coles illesztés és a
+   backteszt a teljes ligatáblát olvassa egyben, nem egyedi sorokat keres —
+   erre a Parquet gyorsabb, és a pandas natívan kezeli.
+
+**Döntés:** a letöltött történelmi meccsadat `data/tortenelmi/<liga>.parquet`
+fájlokba kerül, gitignore-olva (regenerálható:
+`uv run tippmix tortenelmi-letoltes`).
+
+**Mi NEM változik:** a Supabase marad az igazságforrás a *futási*
+eredményekre (tippek, CLV, naplózás) — az a 12. lépés. Ez a döntés csak a
+modellillesztés bemenetéről szól.
+
+**A spec-eltérés rögzítve**, ahogy a CLAUDE.md előírja: ha a spec és a
+gyakorlat eltér, azt le kell írni, nem csendben eldönteni.
+
+---
+
+## D-013 — `setuptools` explicit függőségként a soccerdata miatt
+
+**Dátum:** 2026-09-18
+**Döntéshozó:** Claude
+
+**A probléma:** a `soccerdata` **egyetlen almodulja sem importálható** Python
+3.12-n:
+
+```
+ModuleNotFoundError: No module named 'distutils'
+```
+
+**Az ok:** a `soccerdata` behúzza az `undetected-chromedriver`-t, ami a
+`distutils`-t importálja. A `distutils` a Python 3.12-ben **megszűnt** (PEP
+632). A `soccerdata/__init__.py` mindent behúz, ezért még a `clubelo` vagy a
+`match_history` sem érhető el, pedig azoknak semmi közük a böngésző-vezérléshez.
+
+**A mérlegelt opciók:**
+
+| Opció | Értékelés |
+| --- | --- |
+| Python 3.11-re visszalépni | a CLAUDE.md 3.12-t ír elő; egy tranzitív függőség miatt visszalépni aránytalan |
+| `soccerdata` elhagyása, saját CSV-letöltő | a football-data.co.uk CSV-k formátuma szezononként változik; a wrapper épp ezt kezeli |
+| `setuptools` felvétele | a `setuptools` shimmeli a `distutils`-t; egysoros javítás |
+
+**Döntés:** `setuptools>=69.0` a `pyproject.toml` függőségei közé, kommenttel
+az indoklásról.
+
+**A kockázat:** a `setuptools` egy jövőbeli verziója megszüntetheti a
+`distutils`-shimet. Ha ez bekövetkezik, a tünet ugyanez az import-hiba lesz,
+és akkor a `soccerdata` elhagyása kerül újra napirendre. Addig ez a
+legkisebb beavatkozás.

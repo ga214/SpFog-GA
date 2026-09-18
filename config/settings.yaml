@@ -173,6 +173,24 @@ adattar:
   cache_konyvtar: "data/cache"
   cache_max_kor_ora: 24
 
+# --- Fázis 1: történelmi adatok (spec "Fejlesztési sorrend", 1. fázis) ------
+# A modellillesztés és a backteszt bemenete. NEM a Tippmixről jön, hanem
+# nyilvános sportadat-forrásokból — ezekre nem vonatkozik a D-011 megkötés.
+tortenelmi:
+  # Hány szezonra visszamenőleg töltünk. A spec 3. lépése "utolsó 3 szezon,
+  # idősúlyozva" ablakot ír a Dixon-Coles illesztéshez; ennél többet töltünk,
+  # hogy a backtesztnek legyen mit kiértékelnie a legrégebbi illesztésen is.
+  szezonok_szama: 6
+  # A letöltött adat Parquet-ben landol; a soccerdata saját HTTP-cache-t is
+  # visz (~/soccerdata), ezért az ismételt futás gyors.
+  konyvtar: "data/tortenelmi"
+  # A CLV referenciája. A Pinnacle a legélesebb, legalacsonyabb margójú
+  # fogadóiroda — a spec szerint ehhez a záró vonalhoz mérünk.
+  # Az oszlopnevekben a "C" a záró (closing) árat jelöli.
+  zaro_odds_iroda: "PS"
+  # Ha a Pinnacle záró ára hiányzik egy meccsre, ehhez esünk vissza.
+  zaro_odds_tartalek: "B365"
+
 # --- E-mail (csak a nem-titkos rész; a jelszó a .env-ben) -------------------
 email:
   felado_nev: "Tippmix tipprendszer"

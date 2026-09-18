@@ -128,6 +128,32 @@ def parancs_config_ellenorzes(_argumentumok: argparse.Namespace) -> int:
     return 0
 
 
+def parancs_tortenelmi_letoltes(argumentumok: argparse.Namespace) -> int:
+    """Történelmi meccsadat letöltése a modellezéshez (Fázis 1)."""
+    _naplozas_inditas()
+    from tippmix.gyujtes import tortenelmi
+
+    szezonok = tortenelmi.szezon_kodok(
+        argumentumok.szezonok or beallitasok().tortenelmi.szezonok_szama
+    )
+    print(f"Szezonok: {', '.join(szezonok)}\n")
+
+    try:
+        eredmeny = tortenelmi.osszes_aktiv_letoltes(argumentumok.szezonok)
+    except TippmixHiba as e:
+        print(f"LETÖLTÉSI HIBA:\n{e}", file=sys.stderr)
+        return 1
+
+    if not eredmeny:
+        print("Egyetlen aktív ligához sincs `soccerdata_liga` a config/ligak.yaml-ban.")
+        return 1
+
+    for liga_kod, db in sorted(eredmeny.items()):
+        print(f"  {liga_kod:5} {db:6} meccs")
+    print(f"\nÖsszesen {sum(eredmeny.values())} meccs.")
+    return 0
+
+
 def parancs_zaro_odds(_argumentumok: argparse.Namespace) -> int:
     """A záró szorzók begyűjtése a CLV-hez (12. lépés)."""
     _naplozas_inditas()
@@ -177,6 +203,18 @@ def main(argv: list[str] | None = None) -> int:
     # config-ellenorzes
     p_conf = alparancsok.add_parser("config-ellenorzes", help="a YAML-ok validálása")
     p_conf.set_defaults(fut=parancs_config_ellenorzes)
+
+    # tortenelmi-letoltes
+    p_tort = alparancsok.add_parser(
+        "tortenelmi-letoltes", help="történelmi meccsadat letöltése a modellezéshez"
+    )
+    p_tort.add_argument(
+        "--szezonok",
+        type=int,
+        default=None,
+        help="hány szezonra visszamenőleg (alapértelmezés a settings.yaml-ból)",
+    )
+    p_tort.set_defaults(fut=parancs_tortenelmi_letoltes)
 
     # zaro-odds
     p_zaro = alparancsok.add_parser("zaro-odds", help="záró szorzók begyűjtése a CLV-hez")
