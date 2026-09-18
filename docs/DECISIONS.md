@@ -458,3 +458,62 @@ történelmi adattár xG-vel, és egy becsületes mérőkeret, ami képes volt
 kimondani, hogy valami nem működik. Ez utóbbi a ritkább — a legtöbb
 fogadási rendszer pont azért bukik, mert nincs ilyen mérése, vagy mert a
 jövőbe látás miatt hamis pozitívat mutat.
+
+---
+
+## D-015 — A D-014 alternatíváját 1X2-n megmértük: a margó megeszi az élt
+
+**Dátum:** 2026-09-18
+**Döntéshozó:** a mérés (nem vélemény)
+
+**A kérdés:** a D-014 végén javasolt „reálisabb alternatíva" — ne a piacot
+verjük saját becsléssel, hanem vegyük észre, hol olcsóbb ugyanaz a fogadás —
+működik-e egyáltalán?
+
+**A mérés.** Tippmix-történelmi oddsunk nincs, ezért nem a Tippmixet mértük,
+hanem a mechanizmust: puha irodák ára a Pinnacle power de-viggel számolt fair
+ára ellen, 5 liga × 5 szezon 1X2 adatán
+(`scripts/puha_vs_sharp.py`, `arres-teszt.yml`).
+
+**A válasz: 1X2-n, a top-5 ligában nem működik.**
+
+Árrés a záró 1X2 áron: Pinnacle **2,72%**, a puha irodák **5,04-6,47%**. Egy
+lábnak nem elég jobbnak lennie a fair árnál — a saját irodája árrését is
+felül kell múlnia.
+
+Az egyes irodák sorai mind zajban vannak (±2SE > |ROI|). Az egyetlen
+statisztikailag erős sor a mezőny legjobb ára (`Max`): 8048 fogadáson
+**+0,75% ± 3,63%**, azaz pontosan mért nulla. A korai teszten 8271 fogadáson
+**+0,42% ± 3,29%**, és a küszöb emelésével a ROI romlik, nem javul.
+
+**A legvalószínűbb ok a győztes átka:** azt a lábat választjuk ki, ahol
+`odds × p_fair − 1` a legnagyobb, ami preferálja azokat a lábakat, ahol a
+de-vig felülbecsli `p_fair`-t. A látszólagos élet a becslési hiba eszi meg.
+Ez a kiválasztás hibája, nem a de-vig módszeré.
+
+**Amit ez NEM zár ki, és ezért a döntés nem „leállás":**
+
+1. Csak **1X2**-t mértünk — a 3-utas piac a legnagyobb árrésű, a top-5 liga
+   pedig a leghatékonyabb. Ez a legrosszabb terep egy ilyen stratégiának.
+2. A **2-utas piacok** (ázsiai hendikep, gólszám) érintetlenek. Bloom és
+   Benham is ezeken dolgozik, és ott az árrés jellemzően 2-4%. Az adatunkban
+   a `PAHH`/`PAHA` és a gólszám-oszlopok megvannak.
+3. A **Tippmix tényleges árrése ismeretlen** — egy élő listalekérésből
+   megmérhető, és lényegében eldönti a kérdést.
+
+**A döntés:** a következő két mérés, ebben a sorrendben, mielőtt bármit
+építenénk: (1) a Tippmix árrése, (2) ugyanez a teszt 2-utas piacokon. Ha az
+1. mérés 8-10%-ot ad, a stratégia 1X2-n halott, és a 2-utas piacokon is
+nehéz lesz.
+
+**Egy policy-következmény, amit itt rögzítünk:** a **Pinnacle és a Betfair
+szerencsejáték-oldal**, tehát a D-011 megkötése (a forgalom kizárólag
+Actionsből indulhat) **rájuk is vonatkozik** — a CLAUDE.md mentessége
+(„a többi adatforrás nem szerencsejáték-oldal") csak a
+football-data.co.uk-ra, az Understatra és az NBA-forrásokra igaz. Ha éles
+sharp-referencia kell, tisztább egy adatszolgáltatót használni (nem
+fogadóirodát).
+
+**Amit ez a munka ért:** egy 2 perces, megismételhető mérés, ami a
+„működhet-e egyáltalán" kérdésre számot ad vélemény helyett — és kizárta a
+legdrágább zsákutcát, mielőtt bármit megépítettünk volna hozzá.

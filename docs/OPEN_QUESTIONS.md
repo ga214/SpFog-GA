@@ -458,6 +458,46 @@ kevesebb lesz.
 **Mikor:** a Fázis 2 után, a backteszt eredményének fényében. Ne építsünk
 pótlást olyan jellemzőre, amiről még nem tudjuk, hogy számít-e.
 
+### NY-22 — A pozitív CLV nem fordult át nyereségbe · NYITOTT — FONTOS
+
+**Ez a projekt sikerkritériumát érinti.** A `CLAUDE.md` 4. mondata kimondja:
+
+> A siker mércéje a **CLV (closing line value)**, nem a rövid távú nyereség —
+> a nyereség szerencse kérdése, a CLV nem.
+
+A 2026-09-18-i árrés-teszt (`scripts/puha_vs_sharp.py`) ezzel szembemegy. A
+„korai ár kiválasztásra, Pinnacle záró ára referenciaként" mérésben, a
+mezőny legjobb árán:
+
+| Küszöb | Fogadás | CLV+ | ROI | ±2SE |
+| --- | --- | --- | --- | --- |
+| 0% | 8271 | 62,4% | +0,42% | 3,29% |
+| 1% | 4758 | 67,0% | −0,32% | 4,47% |
+| 2% | 2414 | 70,7% | −1,95% | 6,80% |
+| 3% | 1304 | 72,7% | −3,08% | 9,86% |
+
+A CLV monoton nő a küszöbbel, a ROI viszont nulla vagy negatív. 8271
+fogadáson ez már nem magyarázható „rövid távú szerencsével".
+
+**A kérdés:** melyik igaz?
+
+1. **A CLV-mérésünk túl durva.** Csak azt nézzük, hogy a fogadott ár
+   *meghaladja-e* a záró fair árat (bináris), a **mértékét** nem. Sok
+   hajszálnyi nyerés és kevés nagy vesztés ugyanezt a képet adná. Ha ez az
+   ok, a javítás: CLV-t a különbség nagyságával mérni, ne igen/nem-mel.
+2. **A záró fair ár becslése torzított a kiválasztott lábakon** (győztes
+   átka): azt választjuk, ahol a de-vig felülbecsli `p_fair`-t, és ugyanez a
+   torzítás rontja a CLV-referenciát is.
+3. **A CLV önmagában tényleg nem elég** ilyen árrésű piacon.
+
+**Miért fontos:** ha a CLV nem előrejelzi a nyereséget, akkor a projekt egy
+olyan mércére optimalizál, ami nem azt méri, amit gondolunk — és a spec `w`
+paraméterét (NY-01) is CLV-re akarjuk hangolni.
+
+**Mit kell tenni:** a CLV-t mértékkel újramérni (1. pont) — ez olcsó, a
+meglévő szkript kis bővítése. Amíg ez nincs meg, egyetlen döntést se
+alapozzunk a bináris CLV-arányra.
+
 ### NY-21 — Az Understat-parser eltört a soccerdata-ban · MEGKERÜLVE (2026-09-18)
 
 A `soccerdata.Understat.read_schedule()` `KeyError: 'statData'`-val elszáll:

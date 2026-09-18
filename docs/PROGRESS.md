@@ -7,6 +7,107 @@ bejegyzés: mit csináltunk, miért, mi működik, mi nem, mi a következő lép
 
 ---
 
+## 2026-09-18 (8) — A D-014 alternatívájának mérése: a margó megeszi az élt
+
+### A lényeg elöl
+
+A D-014 végén szereplő „reálisabb alternatíva" — ne a piacot verjük, hanem
+vegyük észre, hol olcsóbb ugyanaz a fogadás — **1X2-n, a top-5 ligában nem
+jön ki.** A puha irodák árrése nagyobb, mint a félreárazás, amit hagynak.
+
+És egy második, kellemetlenebb eredmény: **a pozitív CLV ebben a mérésben nem
+fordult át nyereségbe** 8271 fogadáson. Ez a projekt sikerkritériumát érinti,
+ezért külön nyitott kérdés lett belőle (NY-22).
+
+### Mit mértünk
+
+Tippmix-történelmi oddsunk nincs, ezért nem a Tippmixet mértük, hanem a
+**mechanizmust**: ha egy puhább iroda ára jobb, mint a Pinnacle power
+de-viggel számolt fair ára, az tényleg pozitív EV, vagy csak zaj?
+
+`scripts/puha_vs_sharp.py`, az `arres-teszt.yml` workflow-ban (a
+football-data.co.uk-t a fejlesztői konténer egress-szabálya blokkolja).
+5 liga × 5 szezon, 1X2, ~8900 meccs.
+
+### Árrés (overround) a záró 1X2 áron
+
+| Iroda | Árrés |
+| --- | --- |
+| **Pinnacle (PS)** | **2,72%** |
+| IW | 5,04% |
+| B365 | 5,57% |
+| VC | 5,70% |
+| BW | 5,74% |
+| WH | 6,47% |
+| Max (a mezőny legjobb ára) | −0,12% |
+
+**Ez a kulcs.** A Pinnacle 2,7%-on dolgozik, a puha irodák 5-6,5%-on. Egy
+lábnak nem elég jobbnak lennie a fair árnál — a saját irodája árrését is
+felül kell múlnia.
+
+### Az eredmény
+
+**Egyidejű teszt** (iroda záró ára vs. Pinnacle záró fair ára). A CLV-oszlop
+itt definíció szerint 100%, tehát értelmetlen: ugyanaz az ár a kiválasztás és
+a referencia. Ez ugyanaz a mérési műtermék, mint a Fázis 2-ben.
+
+| Iroda | Küszöb | Fogadás | ROI | ±2SE |
+| --- | --- | --- | --- | --- |
+| B365 | 1% | 279 | −10,62% | 17,98% |
+| BW | 1% | 311 | −5,89% | 15,35% |
+| IW | 1% | 594 | +1,52% | 9,45% |
+| WH | 1% | 400 | +4,13% | 16,93% |
+| VC | 1% | 322 | −10,35% | 21,78% |
+| **Max** | **1%** | **8048** | **+0,75%** | **3,63%** |
+
+Az egyes irodák sorai mind zajban vannak (a ±2SE nagyobb, mint a ROI). Az
+egyetlen statisztikailag erős sor a **Max**: a mezőny legjobb ára, 8048
+fogadáson, **+0,75% ± 3,63%** — vagyis pontosan mért nulla.
+
+**Korai teszt** (a valós stratégia: korai ár a kiválasztásra, a Pinnacle záró
+ára a CLV-referencia):
+
+| Iroda | Küszöb | Fogadás | ROI | ±2SE | CLV+ |
+| --- | --- | --- | --- | --- | --- |
+| Max | 0% | 8271 | +0,42% | 3,29% | 62,4% |
+| Max | 1% | 4758 | −0,32% | 4,47% | 67,0% |
+| Max | 2% | 2414 | −1,95% | 6,80% | 70,7% |
+| Max | 3% | 1304 | −3,08% | 9,86% | 72,7% |
+
+**A CLV monoton nő a küszöbbel (62% → 73%), a ROI mégis nulla vagy negatív.**
+A kiválasztás tehát tényleg talál a záróárnál jobb árakat — csak ez nem
+termel pénzt.
+
+### Miért nem lesz a fair árnál jobb árból nyereség?
+
+A legvalószínűbb ok a **győztes átka**: azt a lábat választjuk ki, ahol
+`odds × p_fair − 1` a legnagyobb, ami preferálja azokat a lábakat, ahol a
+de-vig **felülbecsli** `p_fair`-t. A látszólagos élet a becslési hiba eszi
+meg. Ez nem a de-vig módszer hibája, hanem a kiválasztásé.
+
+### Amit ez NEM zár ki
+
+1. **Csak 1X2-t mértünk, a top-5 ligában.** Ez a futball legahatékonyabb
+   piaca — a legrosszabb hely egy ilyen stratégiának. A 3-utas piac ráadásul
+   a legnagyobb árrésű.
+2. **A 2-utas piacok (ázsiai hendikep, gólszám) érintetlenek.** Bloom és
+   Benham is ezeken dolgozik, és ott az árrés jellemzően 2-4%, nem 5-6,5%.
+   Az adatunkban a `PAHH`/`PAHA` és a gólszám-oszlopok megvannak.
+3. **A Tippmix tényleges árrése továbbra is ismeretlen** — a `PROGRESS`-ben
+   korábban szereplő 3,1% a Pinnacle-é, nem a Tippmixé.
+
+### A következő lépés
+
+Két olcsó mérés, ebben a sorrendben:
+
+1. **A Tippmix árrése** egy élő listalekérésből (`gyujtes-proba.yml`). Ha
+   8-10% körül van, a stratégia 1X2-n biztosan halott, és a 2-utas piacokon
+   is nehéz.
+2. **Ugyanez a teszt 2-utas piacokon** (gólszám 2,5, ázsiai hendikep), ahol
+   az árrés töredéke a 3-utasénak.
+
+---
+
 ## 2026-09-18 (7) — Fázis 3: xG + kalibráció + rácskeresés. A VÁLASZ UGYANAZ.
 
 ### A lényeg elöl
