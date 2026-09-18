@@ -71,6 +71,48 @@ gyujtes:
   nyers_mentes_konyvtar: "data/raw"
   kezi_tartalek_konyvtar: "data/manual"
 
+  # --- A Tippmix WAMP-végpont paraméterei ---------------------------------
+  # Forrás: a 2026-09-18-i empirikus felderítés (docs/OPEN_QUESTIONS.md NY-11).
+  # A platform szabványos WAMP v2-t beszél, autentikáció nélkül.
+  wamp:
+    url: "wss://sportsapi.tippmixpro.hu/v2"
+    realm: "www.tippmixpro.hu"
+    origin: "https://sports2.tippmixpro.hu"
+    authid: "webapi-wampy"
+    alprotokoll: "wamp.2.json"
+    # Az eljárás neve fix; a kért adat útvonala a `topic` kwargban megy.
+    eljaras: "/sports#initialDump"
+    operator_id: 2901          # a Tippmix Pro azonosítója az EveryMatrix rendszerben
+    nyelv: "hu"
+    # Egy bajnokság teljes meccslistája meghaladhatja az 1 MB-os alapértelmezést.
+    max_keret_meret_mb: 64
+
+    # A Tippmix sportág-azonosítói (a `disciplines` hívásból, 2026-09-18).
+    sport_id:
+      foci: 1
+      kosar: 8
+
+    # A piacok Tippmix-oldali kódja: "<bettingTypeId>-<eventPartId>".
+    # Egy hívásban vesszővel kötegelhetők. Az eventPartId=3 a rendes játékidő.
+    # A ligak.yaml piac-kódjaihoz rendelve:
+    piac_kod:
+      "1X2": "69-3"
+      OU25: "47-3"
+      BTTS: "693-3"
+
+    # A kimenetelek nyelvfüggetlen kulcsa (`headerNameKey`) → a ligak.yaml
+    # kimenetel-kódjai. A `translatedName` erre NEM alkalmas: az 1X2-nél a
+    # csapat nevét adja ("Bayern München"), nem a pozíciót.
+    # A "yes"/"no" idézőjelben: a YAML ezeket egyébként boolean-ná alakítja.
+    kimenetel_kod:
+      home: "1"
+      draw: "X"
+      away: "2"
+      over: "Tobb"
+      under: "Kevesebb"
+      "yes": "Igen"
+      "no": "Nem"
+
 # --- 2. lépés: névillesztés (spec 2. lépés) ---------------------------------
 nevillesztes:
   alias_csv: "data/team_aliases.csv"

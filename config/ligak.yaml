@@ -16,6 +16,11 @@ futball:
   # --- Top 5 liga: Understat xG elérhető 2014/15-től, teljes adatlefedettség
   - kod: E0
     nev: "Premier League"
+    # A bajnokság neve a Tippmix írásmódja szerint, évad nélkül. A párosítás
+    # pontos egyezés az évad levágása után — SZÁNDÉKOSAN nem fuzzy, mert a
+    # részstring-egyezés beengedi az "Angol Isthmian Premier Ligát" és a
+    # "Bundesliga 2."-t is (2026-09-18-i tanulság).
+    tippmix_nev: "Premier Liga"
     orszag: "Anglia"
     aktiv: true
     xg_forras: "understat"
@@ -24,6 +29,7 @@ futball:
 
   - kod: SP1
     nev: "La Liga"
+    tippmix_nev: "LaLiga"
     orszag: "Spanyolország"
     aktiv: true
     xg_forras: "understat"
@@ -32,6 +38,7 @@ futball:
 
   - kod: D1
     nev: "Bundesliga"
+    tippmix_nev: "Bundesliga 1."
     orszag: "Németország"
     aktiv: true
     xg_forras: "understat"
@@ -40,6 +47,7 @@ futball:
 
   - kod: I1
     nev: "Serie A"
+    tippmix_nev: "Serie A"
     orszag: "Olaszország"
     aktiv: true
     xg_forras: "understat"
@@ -48,6 +56,7 @@ futball:
 
   - kod: F1
     nev: "Ligue 1"
+    tippmix_nev: "Ligue 1"
     orszag: "Franciaország"
     aktiv: true
     xg_forras: "understat"
@@ -56,6 +65,11 @@ futball:
 
   # --- Másodvonal: football-data.co.uk ad eredményt + záró oddsot,
   #     de xG nincs ingyen. Kezdetben inaktív, a backteszt dönt róluk.
+  #
+  # FIGYELEM: ezeknél a `tippmix_nev` hiányzik, mert a 2026-09-18-i
+  # felderítéskor egyikük sem szerepelt a Tippmix kínálatában, és nem
+  # találgatunk. Aktiválás előtt ki kell deríteni a pontos nevet, különben
+  # a bajnokság csendben kimarad.
   - kod: E1
     nev: "Championship"
     orszag: "Anglia"
@@ -80,6 +94,7 @@ futball:
 kosarlabda:
   - kod: NBA
     nev: "NBA"
+    tippmix_nev: "NBA"
     aktiv: true
     stat_forras: "nba_api"
     # FIGYELEM: a stats.nba.com blokkolja az adatközponti IP-ket.
@@ -89,6 +104,7 @@ kosarlabda:
 
   - kod: EL
     nev: "EuroLeague"
+    tippmix_nev: "Euroliga"
     aktiv: false
     stat_forras: "euroleague_api"
     adatkozponti_ip_kockazat: false

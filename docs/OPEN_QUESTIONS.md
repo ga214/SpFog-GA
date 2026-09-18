@@ -419,6 +419,29 @@ rendszer nem automatizál fogadást, csak javaslatot ad.
 - Lehetséges megoldás: OddsPortal-scrapelés (OddsHarvester), ToS-kockázattal
 - Mikor: Fázis 7, ha egyáltalán
 
+### NY-19 — A kosárlabda-piacok Tippmix-kódja · NYITOTT
+
+A 2026-09-18-i felderítés a **futball** piacait derítette ki:
+`settings.yaml` → `gyujtes.wamp.piac_kod` = `1X2: "69-3"`, `OU25: "47-3"`.
+Ezek `<bettingTypeId>-<eventPartId>` párok.
+
+**A kosárlabda aktív piacainak (TOTAL = Összpontszám, SPREAD = Hendikep)
+kódja még nincs meg.** Amíg nincs, a scraper a kosárlabdát **csendben
+kihagyja** — a `_piac_kodok()` üres listát ad, és a sportág kimarad a
+gyűjtésből. Ez nem dob hibát, ezért van itt rögzítve.
+
+Az NBA `aktiv: true` és a Tippmix-neve megvan (`"NBA"`), tehát a bajnokság
+párosítása működne — csak a piackódok hiányoznak.
+
+**Hogyan kell kideríteni:** ugyanúgy, ahogy a fociét. Egy NBA-meccs
+azonosítójával végigpróbálni a `match-odds/<bettingTypeId>-<eventPartId>`
+kombinációkat, vagy a `MAIN_MARKET` rekordokból kiolvasni a `bettingTypeId`-t
+(a felderítéskor a teniszre például `bettingTypeId: 47` = „Játékszám",
+`39` = „Játékszám hendikep" jött — a kosárnál hasonló logika várható).
+
+**Mikor:** a Fázis 7 (kosárlabda) előtt mindenképp; addig a rendszer
+kizárólag futballra ad javaslatot.
+
 ---
 
 ## Módszertani kérdések, amikre később kell válasz

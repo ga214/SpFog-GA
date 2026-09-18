@@ -216,3 +216,72 @@ a power és az arányos módszer több mint 5 pp-tel eltér.
 vennie — a gyanús piacok jelöltjeit ki kell szűrni. Ezt a Fázis 4-ben kell
 megvalósítani, és a `KiesesiOk` enumot ki kell egészíteni. Rögzítve:
 [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) NY-08.
+
+---
+
+## D-009 — Saját minimális WAMP-kliens, nem Playwright és nem `autobahn`
+
+**Dátum:** 2026-09-18
+**Döntéshozó:** Claude, a felhasználó jóváhagyásával
+
+**A kérdés:** hogyan beszéljünk a Tippmix WAMP-végpontjával az 1. lépésben?
+
+**A három opció:**
+
+| Opció | Előny | Hátrány |
+| --- | --- | --- |
+| **Playwright** (böngésző) | bizonyítottan működik; a böngésző kezeli a protokollt | lassú, ~400 MB böngészőmotor, minden futásnál teljes oldalbetöltés; a munkahelyi gépen a vállalati policy blokkolja |
+| **`autobahn`** (teljes WAMP-könyvtár) | szabványkövető, karbantartott | nehéz függőség (Twisted/asyncio réteg) olyan protokollszeletért, amiből öt üzenettípust használunk |
+| **Saját minimális kliens** | néhány JSON-tömb, nulla új függőség (a `websockets` már tranzitívan bent van) | nekünk kell karbantartani, ha a Tippmix változtat |
+
+**Ami eldöntötte:** a felderítés kimutatta, hogy a kézfogás **autentikáció
+nélküli** (HELLO → WELCOME, nincs CHALLENGE), és a lekérdezés egyetlen
+CALL/RESULT párral megvan. Ebből a WAMP-ból öt üzenettípus kell:
+HELLO, WELCOME, CALL, RESULT, ERROR. Ezt egy ~130 soros modul lefedi.
+
+A verifikáció ([scripts/wamp_proba.py](../scripts/wamp_proba.py)) bizonyította,
+hogy böngésző nélkül működik — **és a munkahelyi gépről is**, ahol a
+Playwright-út a vállalati proxy miatt elbukott.
+
+**Döntés:** saját minimális WAMP-kliens
+([gyujtes/wamp_kliens.py](../src/tippmix/gyujtes/wamp_kliens.py)).
+
+**A kockázat és a tartalék:** ha a Tippmix bevezeti a CHALLENGE-et vagy
+megváltoztatja a keretezést, a kliens `AdatgyujtesHiba`-t dob (nem csendben
+hibázik), és a Playwright-út továbbra is rendelkezésre áll — a felderítő
+szkript és a hozzá tartozó workflow bent maradt a repóban pontosan ezért.
+
+---
+
+## D-010 — A bajnokság-párosítás pontos egyezés, nem részstring
+
+**Dátum:** 2026-09-18
+**Döntéshozó:** Claude (az első éles próba tanulsága)
+
+**A kérdés:** hogyan párosítsuk a `ligak.yaml` bajnokságait a Tippmix
+neveivel, amik évadot is tartalmaznak ("Premier Liga 2026/2027")?
+
+**Az első megoldás — részstring-egyezés — csendben rossz volt.** Az éles
+próba eredménye:
+
+- „Bundesliga" beengedte a **Bundesliga 2.-t és 3.-at**
+- „Premier League" beengedett egy **indiai** és egy **ausztrál női** ligát
+- az **angol Premier League kimaradt**, mert a Tippmix „Premier Liga"-ként írja
+
+Vagyis egyszerre gyártott hamis találatokat és hagyta ki az igazit — kivétel
+nélkül, csendben.
+
+**Döntés:** új `tippmix_nev` mező a `ligak.yaml`-ban a Tippmix pontos
+írásmódjával, és a párosítás **pontos egyezés** az évad levágása után
+(`"\s+\d{4}(/\d{4})?$"`).
+
+**Miért nem fuzzy:** ez ugyanaz az elv, mint a CLAUDE.md 3. szabálya a
+csapatnevekre. A fuzzy találat 95%-ban jó, 5%-ban csendben rossz — és egy
+rossz bajnokság-párosítás egy egész liga meccseit viszi be tévesen. Inkább
+maradjon ki egy bajnokság: az látható hiány, nem néma hiba.
+
+**Következmény:** ahol a `tippmix_nev` hiányzik (Championship, Eredivisie,
+Primeira Liga — a felderítéskor nem voltak kínálatban), a liga **nem
+gyűjthető**. Ez szándékos: aktiválás előtt ki kell deríteni a pontos nevet.
+Ugyanez érvényes a kosárpiacokra, lásd
+[OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) NY-19.

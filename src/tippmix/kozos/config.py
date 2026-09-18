@@ -86,6 +86,28 @@ class Futas(BaseModel):
     min_perc_kezdésig: int = Field(ge=0)
 
 
+class Wamp(BaseModel):
+    """A Tippmix WAMP-végpont paraméterei (docs/OPEN_QUESTIONS.md NY-11)."""
+
+    url: str
+    realm: str
+    origin: str
+    authid: str
+    alprotokoll: str
+    eljaras: str
+    operator_id: int
+    nyelv: str
+    max_keret_meret_mb: int = Field(gt=0)
+    sport_id: dict[str, int]
+    piac_kod: dict[str, str]
+    kimenetel_kod: dict[str, str]
+
+    def topic(self, *reszek: str | int) -> str:
+        """WAMP-topic összeállítása: /sports/<operátor>/<nyelv>/<részek…>."""
+        farok = "/".join(str(r) for r in reszek)
+        return f"/sports/{self.operator_id}/{self.nyelv}/{farok}"
+
+
 class Gyujtes(BaseModel):
     ujraprobalkozas_db: int = Field(gt=0)
     ujraprobalkozas_szunet_mp: int = Field(ge=0)
@@ -94,6 +116,7 @@ class Gyujtes(BaseModel):
     user_agent: str
     nyers_mentes_konyvtar: str
     kezi_tartalek_konyvtar: str
+    wamp: Wamp
 
 
 class Nevillesztes(BaseModel):
@@ -201,6 +224,9 @@ class Beallitasok(BaseModel):
 class FutballLiga(BaseModel):
     kod: str
     nev: str
+    # A bajnokság neve a Tippmix írásmódja szerint, évad nélkül. None, ha még
+    # nem derítettük ki — ilyenkor a liga nem gyűjthető (nem találgatunk).
+    tippmix_nev: str | None = None
     orszag: str
     aktiv: bool
     xg_forras: str | None = None
@@ -211,6 +237,7 @@ class FutballLiga(BaseModel):
 class KosarLiga(BaseModel):
     kod: str
     nev: str
+    tippmix_nev: str | None = None
     aktiv: bool
     stat_forras: str
     adatkozponti_ip_kockazat: bool = False

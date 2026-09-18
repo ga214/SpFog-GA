@@ -7,6 +7,89 @@ bejegyzés: mit csináltunk, miért, mi működik, mi nem, mi a következő lép
 
 ---
 
+## 2026-09-18 (3) — Az 1. lépés kész és élesben működik
+
+### Mit csináltunk
+
+**Kiderült, hogy nem kell Playwright.** A felderítés után megírtuk a
+[scripts/wamp_proba.py](../scripts/wamp_proba.py) verifikációt: a WAMP-kézfogás
+és a lekérdezés sima `websockets`-szel is megy, böngésző nélkül — **sőt, a
+munkahelyi gépről is**, mert a vállalati proxy csak a böngészőt szűri, a
+WebSocketet nem. Ez gyorsabb és sokkal kevesebb erőforrást igényel.
+
+**Elkészült az 1. lépés:**
+
+- [gyujtes/wamp_kliens.py](../src/tippmix/gyujtes/wamp_kliens.py) — minimális
+  WAMP v2 kliens (HELLO/WELCOME/CALL/RESULT/ERROR). Nem húztunk be nehéz WAMP
+  könyvtárat: a protokollnak az a szelete, amit használunk, néhány JSON-tömb.
+- [gyujtes/tippmix_scraper.py](../src/tippmix/gyujtes/tippmix_scraper.py) — a
+  `letolt()` immár valódi: bajnokságok → meccsek → piacok/szorzók, 3×
+  újrapróbálkozással, nyers válasz mentésével. A `kezi_tartalek_olvas()` is kész.
+- **16 új teszt**, hálózat nélkül, rögzített Tippmix-rekordmintákon.
+  Összesen **108 teszt**, mind zöld.
+
+### Két csendes hiba, amit az első éles próba hozott felszínre
+
+Mindkettő pontosan az a fajta, ami **nem dob kivételt, csak rossz adatot ad** —
+amitől a CLAUDE.md kritikus szabályai óvnak.
+
+**1. A bajnokság-párosítás részstringgel.** Az első futás eredménye: a
+„Bundesliga" beengedte a másod- és harmadosztályt, a „Premier League" egy
+indiai és egy ausztrál női ligát — **az angol Premier League viszont kimaradt**,
+mert a Tippmix „Premier Liga"-ként írja.
+
+Javítás: új `tippmix_nev` mező a [ligak.yaml](../config/ligak.yaml)-ban, a
+Tippmix pontos írásmódjával, és a párosítás **pontos egyezés** az évad
+levágása után. Ez a 3. szabály szelleme: inkább maradjon ki egy bajnokság,
+mint hogy rosszat engedjünk be. Az inaktív ligáknál (Championship, Eredivisie,
+Primeira Liga) a mező szándékosan hiányzik — a felderítéskor nem voltak a
+kínálatban, és nem találgatunk.
+
+**2. Az 1X2 kimenetel neve a csapat neve volt.** A `translatedName` a
+hazai győzelemre „Bayern München"-t ad, nem „1"-et. Erre a döntési logika nem
+építhet. Javítás: a nyelvfüggetlen `headerNameKey` (`home`/`draw`/`away`/
+`over`/`under`) képződik a `settings.yaml` `kimenetel_kod` blokkján keresztül a
+`ligak.yaml` kimenetel-kódjaira. Ismeretlen kulcs → kihagyás, nem találgatás.
+
+Harmadik, kisebb hiba: a kosárlabda sportazonosítója **8**, nem 2 (a 2 a golf).
+
+### Mi működik
+
+```
+uv run pytest                    → 108 passed
+uv run tippmix config-ellenorzes → a konfiguráció érvényes
+```
+
+Éles próba a Tippmix ellen: **38 esemény, 190 odds-sor**, két bajnokságból
+(Premier Liga, Bundesliga 1.), normalizált kimenetelekkel:
+
+```
+Premier Liga | Brentford - Chelsea | 1X2 - Rendes játékidő   | 1 | 2.68
+Premier Liga | Brentford - Chelsea | 1X2 - Rendes játékidő   | X | 3.95
+Premier Liga | Brentford - Chelsea | 1X2 - Rendes játékidő   | 2 | 2.46
+Premier Liga | Brentford - Chelsea | Gólszám 2.5 - Rendes j. | Tobb     | 1.48
+Premier Liga | Brentford - Chelsea | Gólszám 2.5 - Rendes j. | Kevesebb | 2.64
+```
+
+### Mi nem működik még
+
+- A `zaro_odds_lekeres()` (CLV-hez) továbbra is `NotImplementedError` — a
+  spec szerint ez a Fázis 5 feladata.
+- A 2-10. lépés változatlanul váz.
+- Az NBA-ra még nem futott éles próba (a szezon most kezdődik, 38 meccs van
+  kínálatban) — a kosárpiacok (TOTAL, SPREAD) Tippmix-kódja még nincs
+  felderítve, csak a focié.
+
+### A következő lépés
+
+**Fázis 1:** történelmi adatok letöltése (football-data.co.uk + Understat +
+ClubElo) és Supabase-be töltése. Ez kell a 4. lépés (modellek) alá.
+
+Mellékfeladat, amikor sorra kerül: a kosárlabda-piacok Tippmix-kódjának
+felderítése ugyanazzal a módszerrel, ahogy a fociét csináltuk.
+
+---
+
 ## 2026-09-18 (2) — Playwright WS-felderítő szkript; a munkahelyi gép kiesett
 
 ### Mit csináltunk
