@@ -1,0 +1,42 @@
+name: Árrés-teszt (puha iroda vs. sharp fair ár)
+
+# Lefuttatja a `scripts/puha_vs_sharp.py` felderítést: kiaknázható-e az,
+# ha egy iroda ára jobb, mint a Pinnacle vig-mentesített fair ára.
+#
+# Azért Actionsben fut, mert a fejlesztő céges proxyja (és a fejlesztői
+# konténer egress-szabálya) blokkolja a football-data.co.uk-t.
+#
+# Csak olvas, nem kell hozzá titok. Kézzel indítandó.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  teszt:
+    name: Puha iroda vs. sharp fair ár
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Repó letöltése
+        uses: actions/checkout@v4
+
+      - name: uv telepítése
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Python és függőségek
+        run: uv sync --frozen
+
+      - name: Teszt futtatása
+        run: uv run python scripts/puha_vs_sharp.py | tee arres-teszt.txt
+
+      - name: Eredmény feltöltése
+        uses: actions/upload-artifact@v4
+        with:
+          name: arres-teszt
+          path: arres-teszt.txt
