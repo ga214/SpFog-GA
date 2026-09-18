@@ -7,6 +7,117 @@ bejegyzés: mit csináltunk, miért, mi működik, mi nem, mi a következő lép
 
 ---
 
+## 2026-09-18 (7) — Fázis 3: xG + kalibráció + rácskeresés. A VÁLASZ UGYANAZ.
+
+### A lényeg elöl
+
+A Fázis 2 után azt mondtuk: a nyers modell nem veri a piacot, de a spec
+szerint a nyereség „a kalibrációból, a piaci zsugorításból és a szigorú
+szűrésből jön" — tehát meg kell építeni a hiányzó rétegeket, és **újra
+megnézni ugyanazt a táblázatot**.
+
+Megépítettük mind a hármat. **Az eredmény nem változott: a modell nem veri
+a piacot.**
+
+### Az out-of-sample mérés (a tisztességes)
+
+Tanító szelet 2022/23–2023/24, **érintetlen teszt-szelet 2024/25**, mind az
+5 ligán, 8406 jelölt:
+
+| | Brier |
+| --- | --- |
+| modell nyers | 0,2127 |
+| + izotonikus kalibráció | 0,2128 |
+| + kalibráció + zsugorítás | 0,2089 |
+| **PIAC** | **0,2082** |
+
+**A kalibráció out-of-sample nem javít** (0,2127 → 0,2128). In-sample
+javított (1X2: 0,1950 → 0,1938), ami épp azt mutatja, hogy a tanult
+korrekció a tanítóhalmaz zajához illeszkedik, nem valódi torzításhoz.
+
+És a döntő sor, most már a *teljes* modellel — xG-vel, kalibrációval,
+zsugorítással (n=626):
+
+> modell **44,8%** · piac **40,5%** · **TÉNYLEGES 38,8%**
+
+Ugyanaz, mint a Fázis 2 után. Ahol élt látunk, ott nincs él.
+
+### Rácskeresés — a paraméterhangolás sem ment meg
+
+9 kombináció (ξ ∈ {0,0015; 0,0035; 0,0080} × xG-súly ∈ {0; 0,5; 1}) a
+validációs szeleten:
+
+| ξ | xG | Brier (mi) | Brier (piac) | edge≥3%: modell/piac/**tényleges** |
+| --- | --- | --- | --- | --- |
+| 0,0015 | 1,0 | 0,2072 | **0,2063** | 0,411 / 0,370 / **0,334** |
+| 0,0035 | 0,0 | 0,2073 | **0,2063** | 0,468 / 0,424 / **0,402** |
+| 0,0035 | 0,5 | **0,2071** | **0,2063** | 0,444 / 0,403 / **0,368** |
+| 0,0035 | 1,0 | 0,2072 | **0,2063** | 0,430 / 0,389 / **0,356** |
+| 0,0080 | 0,0 | 0,2080 | **0,2063** | 0,493 / 0,444 / **0,417** |
+| 0,0080 | 0,5 | 0,2074 | **0,2063** | 0,483 / 0,439 / **0,405** |
+| 0,0080 | 1,0 | 0,2073 | **0,2063** | 0,466 / 0,422 / **0,404** |
+
+**Mind a 9 kombinációban veszítünk a piaccal szemben**, és mind a 9-ben a
+tényleges gyakoriság a piac becslése ALATT van ott, ahol élt látunk. A
+legjobb beállításunk (0,2071) sem éri el a piacot (0,2063).
+
+Ez a legfontosabb megállapítás: **nem egy rosszul megválasztott paraméterről
+van szó.** A teljes paramétertartományban ugyanaz a kép.
+
+### Mit csináltunk
+
+- **xG-adat** (`understatapi`), 99,2–100%-os párosítás mind az 5 ligában.
+  A csapatnév-leképezés **verziózott, kézi munka**
+  ([data/understat_nevek.csv](../data/understat_nevek.csv)) — a fuzzy az
+  „Athletic Club"-ra a „Betis"-t adta volna a legjobb találatnak (54 pont),
+  holott a helyes párja az „Ath Bilbao". Pontosan az az 5%, amiről a
+  CLAUDE.md 3. szabálya szól.
+- **xG a modellben**: `xg_suly` paraméter keveri a gólt és az xG-t. A Poisson
+  log-sűrűség `gammaln`-nel folytonosra általánosítva (az xG tört szám).
+- **Izotonikus kalibráció** (`sklearn`), kvantilis-alapú kalibrációs görbe,
+  `w` keresése CLV szerint.
+- **22 + új teszt**, összesen **201 zöld**.
+
+### Amit az xG hozott — és amit nem
+
+Az xG **javítja a nyers modellt** (0,2124 → 0,2105 a validációs szeleten),
+tehát a beépítése helyes volt. De a javulás nem elég: a piac 0,2063-nál van.
+
+Érdekes mellékmegfigyelés: minél nagyobb az xG súlya, annál **kevesebb és
+rosszabb** élt talál a modell (xG=0-nál 40,2% jön be, xG=1-nél 33,4%). Az xG
+visszafogottabb csapaterősségeket ad, ami közelebb viszi a modellt a
+piachoz — és ahol utána mégis eltér, ott inkább téved.
+
+### A becsületes összegzés
+
+A spec kilépési feltétele teljesült, most már a **teljes** modellel:
+
+> „Ha ezeken átjutunk és a backteszt nem mutat pozitív CLV-t, akkor a 4-6.
+> fázist nem érdemes megépíteni ebben a formában."
+
+Amit kipróbáltunk és nem volt elég: Dixon-Coles idősúlyozással, τ-korrekció,
+xG-jellemzők, izotonikus kalibráció, piaci zsugorítás, adatelégségességi
+kapu, szigorú él- és odds-szűrés, 9-pontos paraméterrács.
+
+**Ami ebből NEM következik:** hogy a munka hiábavaló volt. Működik az
+adatgyűjtés, a Tippmix-integráció (élő odds WAMP-on), a történelmi adattár
+(9110 meccs xG-vel), és — ami a legfontosabb — **egy becsületes mérőkeret,
+ami képes megmondani, hogy valami nem működik.** Ez utóbbi a ritkább.
+
+### A következő lépés — a felhasználó döntése
+
+1. **Leállni** — a spec szerinti becsületes kilépés. Ezt javaslom.
+2. **Más irányba menni** — a jelenlegi modell a *piac átlagos véleményét*
+   próbálja megverni saját statisztikai becsléssel. Reálisabb cél lenne a
+   **piacok közötti eltérés** keresése (a Tippmix mikor tér el a Pinnacle-től),
+   mert ott nem nekünk kell okosabbnak lennünk a piacnál — csak észrevenni,
+   hol olcsóbb ugyanaz. Ez viszont **más rendszer**, nem ennek a folytatása,
+   és külön kutatást igényel.
+3. **Élesíteni kis téttel** — **ezt kifejezetten nem javaslom.** A mérés
+   szerint pénzt veszítenénk, csak lassabban.
+
+---
+
 ## 2026-09-18 (6) — Fázis 2: Dixon-Coles + backteszt. A MODELL NEM VERI A PIACOT.
 
 ### A lényeg elöl

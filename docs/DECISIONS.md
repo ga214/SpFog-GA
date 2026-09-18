@@ -395,3 +395,66 @@ az indoklásról.
 `distutils`-shimet. Ha ez bekövetkezik, a tünet ugyanez az import-hiba lesz,
 és akkor a `soccerdata` elhagyása kerül újra napirendre. Addig ez a
 legkisebb beavatkozás.
+
+---
+
+## D-014 — A Fázis 2-3 mérési eredménye: a modell nem veri a piacot
+
+**Dátum:** 2026-09-18
+**Döntéshozó:** a mérés (nem vélemény)
+
+**A kérdés:** teljesül-e a specifikáció kilépési feltétele?
+
+> „A 2. és 3. fázis a lényeg. Ha ezeken átjutunk és a backteszt nem mutat
+> pozitív CLV-t, akkor a 4-6. fázist nem érdemes megépíteni ebben a formában.
+> Jobb ezt a 2. héten megtudni, mint a 8-on."
+
+**A válasz: nem teljesül. A modell nem veri a piacot.**
+
+**A bizonyíték** (out-of-sample, érintetlen 2024/25-ös teszt-szelet, 5 liga,
+8406 jelölt):
+
+| | Brier |
+| --- | --- |
+| modell nyers | 0,2127 |
+| + izotonikus kalibráció | 0,2128 |
+| + kalibráció + zsugorítás | 0,2089 |
+| **PIAC (záró ár, vig-mentes)** | **0,2082** |
+
+A döntő mutató: ahol a teljes modell 3%+ élt lát (n=626), a modell 44,8%-ot
+mond, a piac 40,5%-ot, és **ténylegesen 38,8%** következik be. A valóság a
+piacnál is rosszabb felénk — vagyis ahol élt látunk, ott szisztematikusan
+tévedünk.
+
+**Nem paraméterezési hiba.** A 9-pontos rács (ξ × xG-súly) **mind a 9
+pontjában** veszítünk a piaccal szemben, és mind a 9-ben a tényleges
+gyakoriság a piac becslése alatt van. A legjobb beállításunk 0,2071, a piac
+0,2063.
+
+**Amit kipróbáltunk:** Dixon-Coles idősúlyozott ML-illesztéssel,
+τ-korrekció, xG-jellemzők (99%+ lefedettség), izotonikus kalibráció, piaci
+zsugorítás, adatelégségességi kapu, szigorú él- és odds-szűrés.
+
+**Amit NEM próbáltunk ki, és emiatt a következtetés korlátozott:**
+
+- ClubElo (a forrás halott, NY-20) — de ez részben ugyanazt méri, mint a
+  Dixon-Coles csapaterősség
+- sérülés-/felállás-adat (a spec hírvétója, 8. lépés)
+- piacok közötti eltérés (Tippmix vs Pinnacle) — lásd alább
+
+**A döntés:** a 4-6. fázist **ebben a formában nem építjük tovább.** A
+javaslat a leállás.
+
+**Egy reálisabb alternatíva, ha mégis folytatódik:** a jelenlegi rendszer a
+*piac véleményét* akarja megverni saját statisztikai becsléssel — ez a nehéz
+út. A könnyebb kérdés: **hol tér el a Tippmix a Pinnacle-től?** Ott nem
+nekünk kell okosabbnak lennünk a piacnál, csak észrevenni, hogy ugyanaz a
+fogadás az egyik helyen olcsóbb. Ez viszont **más rendszer**, nem ennek a
+folytatása: más adatgyűjtés (két platform egyszerre), más döntési logika, és
+külön kutatást igényel.
+
+**Amit ez a munka ért:** működő Tippmix-integráció (WAMP), 9110 meccses
+történelmi adattár xG-vel, és egy becsületes mérőkeret, ami képes volt
+kimondani, hogy valami nem működik. Ez utóbbi a ritkább — a legtöbb
+fogadási rendszer pont azért bukik, mert nincs ilyen mérése, vagy mert a
+jövőbe látás miatt hamis pozitívat mutat.
