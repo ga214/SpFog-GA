@@ -419,6 +419,57 @@ rendszer nem automatizál fogadást, csak javaslatot ad.
 - Lehetséges megoldás: OddsPortal-scrapelés (OddsHarvester), ToS-kockázattal
 - Mikor: Fázis 7, ha egyáltalán
 
+### NY-20 — A ClubElo API nem érhető el · NYITOTT
+
+**A spec 3. lépése a „ClubElo érték az `asof_datum`-ra" jellemzőt írja elő**,
+és a `ligak.yaml` mind az 5 aktív ligánál `clubelo: true`-t tartalmaz.
+
+**2026-09-18: az `api.clubelo.com` NEM elérhető, sem lokálisan, sem
+GitHub Actions runnerről.**
+
+| Honnan | Eredmény |
+| --- | --- |
+| Fejlesztő gépe, HTTPS | timeout (21 mp után nem csatlakozik) |
+| Fejlesztő gépe, HTTP | 502 (a céges proxytól) |
+| GitHub Actions runner | `ConnectionError: Could not download http://api.clubelo.com/...` |
+
+**Ez a fontos rész:** mivel a runnerről sem megy, **nem a céges hálózat
+blokkolja** — a forrás maga halott, elköltözött, vagy megszűnt a nyilvános
+API. (A `soccerdata` ráadásul `http://`-t hív, nem HTTPS-t.)
+
+Ugyanezen a futáson a football-data.co.uk és az Understat **működött**, tehát
+nem általános hálózati hiba: 2/3 forrás elérhető.
+
+**Mit jelent ez a modellre:** a Dixon-Coles illesztés **nem függ a ClubElótól**
+— az a gólokból dolgozik. Az Elo egy *kiegészítő jellemző* lett volna a 3.
+lépésben. A Fázis 2 tehát nélküle is elvégezhető, csak egy jellemzővel
+kevesebb lesz.
+
+**Lehetséges megoldások, ha kell:**
+
+1. Megnézni, él-e még a clubelo.com weboldal, és van-e új API-végpont
+   (lehet, hogy csak HTTPS-re váltottak, és a `soccerdata` régi URL-t hív).
+2. **Saját Elo-számítás** a már letöltött 9110 meccsből. Az Elo képlete
+   nyilvános és egyszerű; a bemenet (eredmények, dátumok) megvan. Ez egyben
+   megszünteti a külső függést is.
+3. Elhagyni az Elót, ha a backteszt szerint nem ad hozzá a Dixon-Coles
+   csapaterősséghez (ami részben ugyanazt méri).
+
+**Mikor:** a Fázis 2 után, a backteszt eredményének fényében. Ne építsünk
+pótlást olyan jellemzőre, amiről még nem tudjuk, hogy számít-e.
+
+### NY-21 — Az Understat-parser eltört a soccerdata-ban · MEGKERÜLVE (2026-09-18)
+
+A `soccerdata.Understat.read_schedule()` `KeyError: 'statData'`-val elszáll:
+az Understat megváltoztatta az oldal szerkezetét, a wrapper parsere elavult.
+
+**Megkerülve:** a projektben már benne van az `understatapi` csomag, ami
+ugyanezt az adatot közvetlenül hozza (380 meccs xG-vel, teszteltük
+Actionsből is). Az xG-letöltés ezt fogja használni, nem a soccerdata-t.
+
+Nem kell külön lépés — csak azért van rögzítve, hogy ha valaki később a
+`soccerdata.Understat`-ot akarná használni, tudja, miért nem azt használjuk.
+
 ### NY-19 — A kosárlabda-piacok Tippmix-kódja · NYITOTT
 
 A 2026-09-18-i felderítés a **futball** piacait derítette ki:
