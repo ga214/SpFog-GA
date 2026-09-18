@@ -1,12 +1,14 @@
 """Fázis 0 verifikáció — megy-e a WAMP böngésző nélkül, sima websockets-szel?
 
-Ha igen, az 1. lépés nem igényel Playwrightot: gyorsabb, kevesebb erőforrás,
-és az Actions-futás is olcsóbb. Ha a szerver visszautasítja (Origin-ellenőrzés,
-CHALLENGE, egyéb), akkor marad a bizonyítottan működő Playwright-út.
+FIGYELEM — CSAK GITHUB ACTIONSBEN FUTTATHATÓ.
+A Tippmix felé irányuló forgalom soha nem indulhat a fejlesztő céges gépéről,
+mert az IT-szabályzat tiltja a tippmixpro.hu elérését. Lásd CLAUDE.md
+„A Tippmix felé SOHA nem indul forgalom a fejlesztő gépéről" és
+docs/DECISIONS.md D-011.
 
-Futtatás (a munkahelyi gépen NEM megy, a böngésző-policy miatt — de curl igen,
-szóval érdemes ott is megpróbálni; élesben Actions runneren fut):
-    uv run python scripts/wamp_proba.py
+Ez a szkript a felderítés dokumentációja: bizonyítja, hogy a WAMP-kézfogás
+autentikáció nélküli, és hogy nem kell Playwright. Ha újra kell futtatni,
+tedd Actions-workflow-ba (lásd gyujtes-proba.yml mintájára).
 """
 
 from __future__ import annotations
@@ -14,8 +16,12 @@ from __future__ import annotations
 import asyncio
 import json
 import sys
+from pathlib import Path
 
 import websockets
+
+sys.path.insert(0, str(Path(__file__).parent))
+import _csak_actionsben
 
 WS_URL = "wss://sportsapi.tippmixpro.hu/v2"
 REALM = "www.tippmixpro.hu"
@@ -100,6 +106,7 @@ async def proba() -> int:
 
 
 if __name__ == "__main__":
+    _csak_actionsben.ellenoriz()
     try:
         sys.exit(asyncio.run(proba()))
     except Exception as hiba:

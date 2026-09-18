@@ -1,0 +1,56 @@
+name: Gyűjtés-próba (fejlesztői)
+
+# Az 1. lépés kipróbálása a GitHub runneren, NEM a fejlesztő gépéről.
+#
+# Miért: a fejlesztő munkahelyi gépén a céges szabályzat tiltja a
+# tippmixpro.hu elérését. A nyers WebSocket ugyan átmegy a proxyn, de a
+# szándék az, hogy a Tippmix felé irányuló forgalom SOHA ne a céges gépről
+# és céges hálózatról induljon. Lásd docs/DECISIONS.md D-011.
+#
+# Ez a workflow csak olvas: nem küld e-mailt, nem ír adatbázisba, nem
+# igényel titkot. Az eredményt artefaktumként töltöd le.
+#
+# Kézzel indítandó:  gh workflow run gyujtes-proba.yml
+
+on:
+  workflow_dispatch:
+    inputs:
+      minta_sor:
+        description: "Hány odds-sort írjon ki a naplóba"
+        required: false
+        default: "25"
+
+permissions:
+  contents: read
+
+jobs:
+  proba:
+    name: Esemény-begyűjtés próba
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Repó letöltése
+        uses: actions/checkout@v4
+
+      - name: uv telepítése
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Python és függőségek
+        run: uv sync --frozen
+
+      - name: Gyűjtés futtatása
+        env:
+          MINTA_SOR: ${{ inputs.minta_sor }}
+        run: uv run python scripts/gyujtes_proba.py
+
+      - name: Eredmény feltöltése
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gyujtes-proba
+          path: data/raw/
+          if-no-files-found: warn
+          retention-days: 14

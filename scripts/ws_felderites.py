@@ -1,5 +1,8 @@
 """Fázis 0 — a Tippmix Pro WebSocket-forgalmának felderítése Playwright-tal.
 
+FIGYELEM — CSAK GITHUB ACTIONSBEN FUTTATHATÓ (lásd CLAUDE.md és D-011).
+
+
 Megnyitja a sports2.tippmixpro.hu oldalt egy valódi böngészőmotorban, és
 minden WebSocket-üzenetet fájlba ír. A cél a `wss://sportsapi.tippmixpro.hu/v2`
 protokolljának megismerése: milyen subscribe-üzenet megy ki, milyen formában
@@ -22,10 +25,14 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
 from playwright.async_api import async_playwright
+
+sys.path.insert(0, str(Path(__file__).parent))
+import _csak_actionsben
 
 CEL_URL = "https://sports2.tippmixpro.hu/hu"
 KIMENET_GYOKER = Path("data/raw")
@@ -152,4 +159,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    _csak_actionsben.ellenoriz()
     main()

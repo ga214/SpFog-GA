@@ -166,6 +166,34 @@ hogy szóljanak.
 
 Részletek: [docs/SECRETS.md](docs/SECRETS.md).
 
+### A Tippmix felé SOHA nem indul forgalom a fejlesztő gépéről
+
+**Ez nem technikai, hanem munkahelyi kockázat, és nincs alóla kivétel.**
+
+A fejlesztő munkahelyi gépet és céges hálózatot használ, ahol az IT-szabályzat
+tiltja a tippmixpro.hu elérését. A nyers WebSocket-kapcsolat ugyan átmegy a
+céges proxyn (csak a böngésző van szűrve), **de attól még szabályszegésnek
+minősülhet** — és ennek a fejlesztőre nézve munkajogi következménye lehet.
+
+Ezért:
+
+- **Minden Tippmix felé irányuló hálózati hívás GitHub Actions runneren fut.**
+  Az éles futások (`delelotti-futas`, `esti-futas`, `zaro-odds`) eleve így
+  mennek.
+- **Fejlesztés és hibakeresés közben is**: ha ki kell próbálni a gyűjtést,
+  arra a `gyujtes-proba.yml` workflow való — `gh workflow run
+  gyujtes-proba.yml`, majd az eredmény artefaktumként letölthető.
+- **Soha ne futtass olyan lokális parancsot, ami a tippmixpro.hu-ra vagy a
+  sportsapi.tippmixpro.hu-ra megy** — se `curl`, se Python, se böngésző, se
+  „csak egy gyors teszt". Ha úgy érzed, hogy egy hibakereséshez feltétlenül
+  kellene, **kérdezz rá a fejlesztőnél**, ne csináld meg magadtól.
+- A `scripts/` alatti felderítő szkriptek (`ws_felderites.py`,
+  `wamp_proba.py`, `gyujtes_proba.py`) **kizárólag Actionsben futtatandók**,
+  akkor is, ha lokálisan technikailag működnének.
+
+Ez a megkötés a Tippmixre vonatkozik. A többi adatforrás (football-data.co.uk,
+Understat, ClubElo, NBA) nem szerencsejáték-oldal, azokat nem érinti.
+
 ---
 
 ## Adatmodell-változások

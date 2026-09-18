@@ -285,3 +285,44 @@ Primeira Liga — a felderítéskor nem voltak kínálatban), a liga **nem
 gyűjthető**. Ez szándékos: aktiválás előtt ki kell deríteni a pontos nevet.
 Ugyanez érvényes a kosárpiacokra, lásd
 [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) NY-19.
+
+---
+
+## D-011 — A Tippmix felé irányuló forgalom kizárólag GitHub Actionsből indul
+
+**Dátum:** 2026-09-18
+**Döntéshozó:** a felhasználó kérése
+
+**A kérdés:** futhat-e a Tippmix-lekérdezés a fejlesztő gépéről?
+
+**A háttér:** a fejlesztő munkahelyi gépet és céges hálózatot használ, ahol az
+IT-szabályzat tiltja a tippmixpro.hu elérését. A fejlesztés során kiderült,
+hogy a **nyers WebSocket-kapcsolat átmegy a céges proxyn** (csak a böngésző
+van tartalomszűrve, lásd NY-11) — tehát a lekérdezés technikailag működik
+lokálisan.
+
+**Épp ez a veszélyes:** attól, hogy technikailag megy, még szabályszegésnek
+minősülhet, és ennek a fejlesztőre nézve **munkajogi következménye** lehet.
+Ez nem technikai, hanem személyes kockázat, és fontosabb, mint a fejlesztői
+kényelem.
+
+**Döntés:** minden Tippmix felé irányuló hálózati hívás GitHub Actions
+runneren fut, fejlesztés és hibakeresés közben is.
+
+- Az éles futások (`delelotti-futas`, `esti-futas`, `zaro-odds`) eleve így
+  mentek — ezeken nem kellett változtatni.
+- Új: [gyujtes-proba.yml](../.github/workflows/gyujtes-proba.yml) —
+  a gyűjtés kipróbálása runneren, az eredmény artefaktumként letölthető.
+  Nem küld e-mailt, nem ír adatbázisba, nem igényel titkot.
+- A `scripts/` alatti, Tippmixet hívó szkriptek egy **tényleges
+  védőkorlátot** kaptak ([_csak_actionsben.py](../scripts/_csak_actionsben.py)):
+  ha nem CI-ben futnak, kilépnek, mielőtt bármit hívnának.
+
+**Miért kód, nem csak komment:** egy figyelmeztető komment nem állít meg egy
+jövőbeli munkamenetet, ami „csak gyorsan kipróbálná". A védőkorlát igen. A
+`TIPPMIX_ENGEDEM_A_LOKALIS_HIVAST=1` felülbírálás létezik, de kizárólag a
+felhasználó kifejezett kérésére használható.
+
+**Hatókör:** ez a megkötés a Tippmixre vonatkozik. A többi adatforrás
+(football-data.co.uk, Understat, ClubElo, NBA) nem szerencsejáték-oldal, azokat
+nem érinti — a Fázis 1 történelmi adatgyűjtése tehát futhat lokálisan is.

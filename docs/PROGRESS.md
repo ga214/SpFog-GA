@@ -7,6 +7,43 @@ bejegyzés: mit csináltunk, miért, mi működik, mi nem, mi a következő lép
 
 ---
 
+## 2026-09-18 (4) — A Tippmix-forgalom kizárólag Actionsből indulhat
+
+### Miért
+
+A felhasználó jelezte, hogy a munkahelyi gépéről indított Tippmix-lekérdezés
+**munkajogi kockázatot** jelenthet, mert a céges IT-szabályzat tiltja a
+tippmixpro.hu elérését. A fejlesztés során kiderült, hogy a nyers WebSocket
+átmegy a céges proxyn (csak a böngésző van szűrve) — épp ezért veszélyes:
+attól, hogy technikailag működik, még szabályszegés lehet.
+
+### Mit csináltunk
+
+**Az éles rendszeren nem kellett változtatni** — a napi futások és a záró
+szorzók gyűjtése eleve `ubuntu-latest` runneren mentek. A gépről csak a
+fejlesztői próbák indultak.
+
+- Új workflow: [gyujtes-proba.yml](../.github/workflows/gyujtes-proba.yml) —
+  a gyűjtés kipróbálása runneren, az eredmény artefaktumként letölthető.
+  Csak olvas: nincs e-mail, nincs adatbázis, nem kell hozzá titok.
+  Indítás: `gh workflow run gyujtes-proba.yml`
+- Új védőkorlát: [_csak_actionsben.py](../scripts/_csak_actionsben.py) — a
+  Tippmixet hívó szkriptek (`ws_felderites.py`, `wamp_proba.py`,
+  `gyujtes_proba.py`) **kilépnek, mielőtt bármit hívnának**, ha nem CI-ben
+  futnak. Nem csak komment: tényleges `SystemExit`.
+- A [CLAUDE.md](../CLAUDE.md) kapott egy új szakaszt a biztonsági elvárások
+  alatt, hogy ezt minden jövőbeli munkamenet tudja.
+
+Indoklás és hatókör: [DECISIONS.md](DECISIONS.md) D-011.
+
+### Fontos, hogy tudd
+
+A megkötés **kizárólag a Tippmixre** vonatkozik. A Fázis 1 történelmi
+adatforrásai (football-data.co.uk, Understat, ClubElo, NBA) nem
+szerencsejáték-oldalak, azok lokálisan is hívhatók.
+
+---
+
 ## 2026-09-18 (3) — Az 1. lépés kész és élesben működik
 
 ### Mit csináltunk
