@@ -164,7 +164,11 @@ birtoklásra, amit a pace-szel szorozva pontszámot kapunk.
 
 ## Infrastrukturális bizonytalanságok
 
-### NY-11 — A Tippmix odds-végpont pontos útvonala · FOLYAMATBAN — BLOKKOLÓ
+### NY-11 — A Tippmix odds-végpont pontos útvonala · LEZÁRVA (2026-09-18)
+
+**A protokoll megvan. A válasz a szakasz végén, a „Megoldás" alszakaszban —
+az alábbi történeti rész a felderítés útját dokumentálja.**
+
 
 **Ez blokkolja az 1. lépést, tehát az egész rendszert.**
 
@@ -255,7 +259,103 @@ telefonról kell elvégeznie, VAGY a szkriptet GitHub Actions runneren kell
 lefuttatni (ahol nincs vállalati proxy). Utóbbi egyben az NY-12-t is
 véglegesen lezárná.
 
-### NY-12 — Blokkolja-e a Tippmix a GitHub Actions IP-ket? · RÉSZBEN LEZÁRVA (2026-09-18)
+#### Megoldás — a WS-felderítés Actions runneren lefutott (2026-09-18)
+
+A [ws-felderites.yml](../.github/workflows/ws-felderites.yml) workflow
+lefutott (run 35329378180, 1m38s, zöld). Az oldal betöltött (cím:
+`Sportfogadás`), a WS-kapcsolat létrejött, **250 küldött és 250 kapott keret**
+rögzítve.
+
+**A protokoll NEM egyedi keretezés — szabványos [WAMP v2](https://wamp-proto.org/),
+`Wampy.js v6.2.2` klienssel.** A korábbi „saját, nem szabványos protokoll"
+feltételezés téves volt; a `reconnectDetails`/`onChallengeHandler` minták a
+Wampy könyvtár részei, nem egyedi megoldás.
+
+**A handshake (autentikáció nélkül):**
+
+```
+→ [1, "www.tippmixpro.hu", {"agent":"Wampy.js v6.2.2", "authmethods":["wampcra"],
+                            "authid":"webapi-wampy", "roles":{…}}]
+← [2, <sessionId>, {"roles":{…}}]        # WELCOME azonnal, CHALLENGE NÉLKÜL
+```
+
+Az `authmethods: ["wampcra"]` szerepel a HELLO-ban, de a szerver **nem küld
+CHALLENGE-et** — azonnal WELCOME jön. Az odds-adat olvasásához tehát **nincs
+szükség bejelentkezésre.**
+
+**Az adat WAMP CALL-lal (`[64, id, {}, "<útvonal>"]`) kérhető le**, a válasz
+`[50, id, {}, [], {records:[…]}]`. Minden útvonal a `2901`-es operátorazonosítót
+és a `hu` nyelvet tartalmazza. A megfigyelt hívások:
+
+| Útvonal | Mit ad |
+| --- | --- |
+| `/sports/2901/hu/disciplines/NOT_LIVE/NOT_VIRTUAL/NOT_SIMULATED` | sportágfa, eseményszámokkal |
+| `/sports/2901/hu/tournaments/<sportId>` | bajnokságok |
+| `/sports/2901/hu/<tournamentId>/tournament-odds/7/1` | egy bajnokság eseményei + odds |
+| `/sports/2901/hu/<eventId>/match-odds/69-3` | egy meccs összes piaca |
+| `/sports/2901/hu/bettingOffers/<id1,id2,…>` | konkrét szorzók kötegelve |
+| `/sports/2901/hu/popular-matches-aggregator-main/3/30/1/3` | kiemelt meccsek |
+
+**A válasz rekordalapú** (`messageType: "INITIAL_DUMP"`, `format: "AGGREGATOR"`),
+`_type` mezővel megkülönböztetve. A számunkra fontosak:
+
+```jsonc
+{"_type":"MATCH","id":"313617673133649920","name":"Brentford - Chelsea",
+ "startTime":1789758000000,            // epoch ms
+ "parentName":"Premier Liga 2026/2027","sportName":"Labdarúgás",
+ "numberOfMarkets":953,"statusName":"Pending","allowsLiveOdds":false}
+
+{"_type":"MARKET","id":"313691822823129088","eventId":"313691759318822912",
+ "name":"Gólszám 2.5 - Rendes játékidő","displayKey":"b47_ep3",
+ "paramFloat1":2.5,                    // a vonal (pl. 2.5 gól)
+ "mainLine":true,"isClosed":false,"bettingTypeName":"Gólszám"}
+
+{"_type":"OUTCOME","id":"314169675879265792","eventId":"314169675683098624",
+ "typeName":"Draw","translatedName":"Döntetlen","code":"#D"}
+
+{"_type":"MARKET_OUTCOME_RELATION","marketId":"…129088","outcomeId":"…435456"}
+
+{"_type":"BETTING_OFFER","id":"314162202695644416","outcomeId":"313712694349353728",
+ "odds":2.51,                          // A SZORZÓ
+ "isAvailable":true,"isLive":false,"lastChangedTime":1789716331197}
+```
+
+Az összekapcsolás: `MATCH.id` → `MARKET.eventId`, majd
+`MARKET.id` → `MARKET_OUTCOME_RELATION.marketId` → `.outcomeId` →
+`OUTCOME.id`, és `OUTCOME.id` → `BETTING_OFFER.outcomeId` adja a szorzót.
+
+Ez **tartalmilag pontosan az a `markets[] → outcomes[]` szerkezet**, amit a
+kutatási jelentés feltételezett — csak WAMP-on szállítva, normalizált
+(nem beágyazott) rekordokként.
+
+**Következmény a tervre:** mivel a handshake autentikáció nélküli és a
+protokoll szabványos, **valószínűleg nem kell Playwright** a rendszeres
+futáshoz — elég egy Python WAMP-kliens (pl. `autobahn`), ami sokkal gyorsabb
+és kevesebb erőforrást igényel. Ezt a következő menetben kell verifikálni; ha
+mégsem megy (pl. a szerver `Origin`/`User-Agent` fejlécet ellenőriz), a
+Playwright-út a bizonyítottan működő tartalék. Az `authmethods` jelenléte
+miatt elképzelhető, hogy a szerver bizonyos útvonalakon vagy bizonyos
+kliensektől mégis kihívást küld — ezért a kliensnek kezelnie kell a
+CHALLENGE-et is, még ha most nem jött.
+
+### NY-12 — Blokkolja-e a Tippmix a GitHub Actions IP-ket? · LEZÁRVA (2026-09-18)
+
+**NEM blokkolja.** A [ws-felderites.yml](../.github/workflows/ws-felderites.yml)
+workflow `ubuntu-latest` runneren lefutott: az oldal betöltött, a
+`wss://sportsapi.tippmixpro.hu/v2` WS-kapcsolat létrejött, és 250 keret
+érkezett valódi odds-adattal. Sem IP-tiltás, sem bot-kihívás, sem geo-blokk
+nem jelentkezett.
+
+**Ez eldönti az infrastruktúrát: a scraping maradhat GitHub Actionsben**, nem
+kell önhosztolt runner vagy a felhasználó gépén futó Task Scheduler.
+
+Fenntartás: egyetlen futás nem zárja ki, hogy a Tippmix később
+rate-limitet vagy IP-szűrést vezessen be. A napi kétszeri futás alacsony
+frekvenciájú, de a scrapernek a spec szerinti 3× újrapróbálkozás + hibalevél
+viselkedést mindenképp implementálnia kell.
+
+<details>
+<summary>Korábbi, részleges állapot (2026-09-18 délelőtt)</summary>
 
 - **A fő domain (`www.tippmixpro.hu`) és a `sports2.tippmixpro.hu` NEM
   blokkolt** ismeretlen, feltehetően adatközponti IP-ről sem — mindkettő
@@ -278,6 +378,8 @@ véglegesen lezárná.
   Task Scheduler) — ez már a terv része volt.
 - Mikor: Fázis 0, folytatás
 
+</details>
+
 ### NY-13 — A `stats.nba.com` adatközponti IP-blokkja · NYITOTT
 
 - A kutatás szerint **igazoltan blokkolja** az AWS/GCP/Azure IP-ket, tehát
@@ -286,14 +388,28 @@ véglegesen lezárná.
 - Tartalék: Basketball-Reference
 - Mikor: Fázis 0 (teszt), Fázis 7 (megoldás)
 
-### NY-14 — A robots.txt tényleges tartalma · NYITOTT
+### NY-14 — A robots.txt tényleges tartalma · LEZÁRVA (2026-09-18)
 
-- A kutatás **nem tudta verifikálni** a `tippmixpro.hu/robots.txt`-t
-- A Részvételi Szabályzat nem tilt kifejezetten scrapelést, de van általános
-  "nem rendeltetésszerű használat" klauzula
-- Mit kell tenni: letölteni és **ténylegesen elolvasni** mindkét hoston,
-  majd tartani magunkat hozzá
-- Mikor: **Fázis 0, a végpont-felderítéssel együtt**
+Mindkét hoston ténylegesen letöltve és elolvasva.
+
+- **`sports2.tippmixpro.hu/robots.txt`**: `User-agent: *` / `Disallow:` —
+  **semmi nincs tiltva.** Ez az a hoszt, ahonnan az odds jön.
+- **`www.tippmixpro.hu/robots.txt`**: `User-agent: *`, majd kizárólag
+  **számla- és fiókkezelési útvonalak** tiltva: `*/befizetes*`,
+  `*/kifizetes*`, `*/penzugyi-naplo/*`, `*/szemelyes-adatok*`,
+  `*/onkizaras*`, `*/profil-torlese*`, `*/bonusz-*` és hasonlók.
+  **A fogadási kínálat egyetlen útvonala sincs tiltva.**
+
+**Következtetés:** amit a rendszer csinál (publikus fogadási kínálat és
+szorzók olvasása a `sports2` hosztról), **a robots.txt egyik szabályát sem
+sérti**. A tiltott útvonalak mind bejelentkezést igénylő, személyes
+számlaműveletek — ezekhez a rendszer soha nem nyúl.
+
+**Ami továbbra is érvényes korlát:** a Részvételi Szabályzat általános „nem
+rendeltetésszerű használat" klauzulája. Ezért marad a specifikáció szerinti
+alacsony frekvencia (napi kétszeri futás,
+`config/settings.yaml` → `gyujtes.keresek_kozti_szunet_mp: 1.0`), és a
+rendszer nem automatizál fogadást, csak javaslatot ad.
 
 ### NY-15 — EuroLeague történelmi záró odds · NYITOTT
 

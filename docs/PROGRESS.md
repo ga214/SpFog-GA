@@ -46,12 +46,50 @@ Ez **egyszerre két nyitott kérdést zár le**: megadja a WS-protokollt (NY-11)
 és eldönti, hogy az Actions IP-jéről elérhető-e a Tippmix (NY-12) — ami a
 teljes infrastruktúra-döntés alapja.
 
+### Az eredmény: a Fázis 0 lezárult, a protokoll megvan
+
+A workflow lefutott (run 35329378180, 1m38s, zöld). Az oldal a runneren
+**betöltött**, a WS-kapcsolat létrejött, **250 küldött és 250 kapott keret**
+rögzítve valódi odds-adattal.
+
+**A protokoll szabványos [WAMP v2](https://wamp-proto.org/)** (`Wampy.js v6.2.2`
+kliens) — a korábbi „egyedi, nem szabványos keretezés" feltételezés **téves
+volt**. A handshake autentikáció nélküli: a HELLO-ra azonnal WELCOME jön,
+CHALLENGE nélkül. Az adat WAMP CALL-lal kérhető, rekordalapú válaszban:
+
+| Rekord | Amit ad |
+| --- | --- |
+| `MATCH` | `"Brentford - Chelsea"`, `startTime` (epoch ms), `parentName: "Premier Liga 2026/2027"` |
+| `MARKET` | `"Gólszám 2.5 - Rendes játékidő"`, `paramFloat1: 2.5`, `mainLine: true` |
+| `OUTCOME` | `typeName: "Draw"`, `translatedName: "Döntetlen"` |
+| `BETTING_OFFER` | **`odds: 2.51`** |
+| `MARKET_OUTCOME_RELATION` | a `MARKET`-et és az `OUTCOME`-ot köti össze |
+
+Ez tartalmilag **pontosan az a `markets[] → outcomes[]` szerkezet**, amit a
+specifikáció igényel — csak normalizált rekordokként, WAMP-on szállítva.
+A teljes útvonallista és a mezőszerkezet:
+[OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) NY-11 „Megoldás" szakasz.
+
+**Három nyitott kérdés zárult le egyszerre:**
+
+- **NY-11** (odds-végpont) — a protokoll és a mezőszerkezet megvan
+- **NY-12** (Actions IP blokkolt-e) — **nem blokkolt**, a scraping maradhat
+  GitHub Actionsben; nem kell önhosztolt runner
+- **NY-14** (robots.txt) — mindkét hoszt ténylegesen elolvasva: a `sports2`
+  semmit nem tilt, a `www` csak számla-/fiókkezelési útvonalakat. A fogadási
+  kínálat olvasása egyik szabályt sem sérti.
+
 ### A következő lépés
 
-A workflow lefuttatása, az artefaktum letöltése, és a WS-üzenetformátum
-elemzése. Ha megvan a subscribe-üzenet és a válasz szerkezete, az 1. lépés
-([gyujtes/tippmix_scraper.py](../src/tippmix/gyujtes/tippmix_scraper.py))
-megírható, és ezzel a Fázis 0 lezárul.
+Az 1. lépés megírása
+([gyujtes/tippmix_scraper.py](../src/tippmix/gyujtes/tippmix_scraper.py)).
+Mivel a handshake autentikáció nélküli és a protokoll szabványos,
+**először Python WAMP-klienssel** (`autobahn`) érdemes próbálni, böngésző
+nélkül — sokkal gyorsabb és kevesebb erőforrást igényel. Ha a szerver
+`Origin`/`User-Agent` ellenőrzés miatt visszautasítja, a Playwright-út a
+bizonyítottan működő tartalék.
+
+Ezután **Fázis 1**: történelmi adatok letöltése és Supabase-be töltése.
 
 ---
 
