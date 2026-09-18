@@ -7,6 +7,54 @@ bejegyzés: mit csináltunk, miért, mi működik, mi nem, mi a következő lép
 
 ---
 
+## 2026-09-18 (2) — Playwright WS-felderítő szkript; a munkahelyi gép kiesett
+
+### Mit csináltunk
+
+Megírtuk a Fázis 0 felderítő eszközét:
+[scripts/ws_felderites.py](../scripts/ws_felderites.py) — Playwright-tal megnyitja a
+`sports2.tippmixpro.hu/hu` oldalt, és a `page.on("websocket")` eseménnyel
+minden WS-keretet (küldött és kapott egyaránt) JSONL-be ír, plusz egy emberi
+olvasásra szánt összefoglalót. Kapcsolók: `--varakozas`, `--fejjel`,
+`--csatorna` (rendszer-Chrome / Edge / Playwright saját Chromiumja).
+
+### Mi derült ki — a lokális út zsákutca
+
+A szkript működik, de **a munkahelyi gépen nem tud a célhoz férni**:
+
+| Böngésző | Eredmény |
+| --- | --- |
+| Chrome (rendszer) | `net::ERR_SSL_VERSION_OR_CIPHER_MISMATCH` |
+| Edge (rendszer) | betölt, de a cím: **„A szervezet által letiltott tartalom"** |
+| Playwright Chromium | nem telepíthető, a `cdn.playwright.dev` timeoutol |
+
+Ugyanakkor **`curl`-lal ugyanarról a gépről HTTP 200** jön, és a válasz a
+valódi oldal (`<title>Sportfogadás</title>`).
+
+**A tanulság:** a tiltás **böngésző-szintű vállalati policy**, nem hálózati
+blokk — ezért megy a curl és bukik a böngésző. A Chrome SSL-hibája ugyanennek
+a TLS-elfogó proxynak a mellékhatása. Vagyis nem a megközelítés rossz, hanem
+a gép alkalmatlan rá.
+
+### A megoldás: GitHub Actions runner
+
+Új workflow: [.github/workflows/ws-felderites.yml](../.github/workflows/ws-felderites.yml) —
+kézzel indítható (`workflow_dispatch`), a runneren telepít Chromiumot,
+lefuttatja a szkriptet, és a kimenetet artefaktumként tölti fel (14 nap).
+
+Ez **egyszerre két nyitott kérdést zár le**: megadja a WS-protokollt (NY-11)
+és eldönti, hogy az Actions IP-jéről elérhető-e a Tippmix (NY-12) — ami a
+teljes infrastruktúra-döntés alapja.
+
+### A következő lépés
+
+A workflow lefuttatása, az artefaktum letöltése, és a WS-üzenetformátum
+elemzése. Ha megvan a subscribe-üzenet és a válasz szerkezete, az 1. lépés
+([gyujtes/tippmix_scraper.py](../src/tippmix/gyujtes/tippmix_scraper.py))
+megírható, és ezzel a Fázis 0 lezárul.
+
+---
+
 ## 2026-09-18 — GitHub repó élesítve, Fázis 0 elindult (odds-végpont felderítés)
 
 ### Mit csináltunk

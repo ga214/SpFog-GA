@@ -1,0 +1,64 @@
+name: WS-felderítés (Fázis 0)
+
+# Egyszeri/kézi felderítő futás: megnyitja a Tippmix Pro sportfogadási oldalát
+# egy valódi Chromiumban, és minden WebSocket-keretet artefaktumba ment.
+#
+# Miért Actions runneren és nem lokálisan: a fejlesztő munkahelyi gépén a
+# vállalati böngésző-policy letiltja a tippmixpro.hu-t ("A szervezet által
+# letiltott tartalom"), és a TLS-elfogó proxy miatt a Chrome
+# ERR_SSL_VERSION_OR_CIPHER_MISMATCH-csel elhasal. Lásd docs/OPEN_QUESTIONS.md
+# NY-11. A runneren nincs ilyen proxy.
+#
+# Ez a futás EGYBEN az NY-12-t is eldönti: ha a runner IP-jéről betölt az
+# oldal és jönnek a WS-keretek, akkor az Actions alkalmas a scrapingre.
+#
+# Kézzel indítandó — nincs ütemezés, ez nem ismétlődő feladat.
+
+on:
+  workflow_dispatch:
+    inputs:
+      varakozas:
+        description: "Hány másodpercig figyelje a WS-forgalmat"
+        required: false
+        default: "60"
+
+permissions:
+  contents: read
+
+jobs:
+  felderites:
+    name: WebSocket-forgalom rögzítése
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Repó letöltése
+        uses: actions/checkout@v4
+
+      - name: uv telepítése
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Python és függőségek
+        run: uv sync --frozen
+
+      - name: Chromium telepítése
+        run: uv run playwright install --with-deps chromium
+
+      - name: Felderítés futtatása
+        # A runner saját Chromiumját használja (--csatorna ""), nem
+        # rendszer-Chrome-ot: ott nincs telepítve.
+        run: |
+          uv run python scripts/ws_felderites.py \
+            --varakozas "${{ inputs.varakozas }}" \
+            --csatorna ""
+
+      - name: Eredmény feltöltése
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ws-felderites
+          path: data/raw/ws_felderites_*/
+          if-no-files-found: warn
+          retention-days: 14

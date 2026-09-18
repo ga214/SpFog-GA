@@ -230,6 +230,31 @@ felhasználói munkamenetben, ahol a WS-forgalom is látszik JSON-üzenetenként
 
 **Mikor:** Fázis 0, folytatás — jelenleg itt tartunk.
 
+**2026-09-18, második kísérlet — a Playwright-út a munkahelyi gépen NEM
+járható.** Megírtuk a felderítő szkriptet
+([scripts/ws_felderites.py](../scripts/ws_felderites.py)), ami `page.on("websocket")`-tel
+minden WS-keretet fájlba ír. A futtatás eredménye:
+
+| Böngésző | Eredmény |
+| --- | --- |
+| Chrome (rendszer) | `net::ERR_SSL_VERSION_OR_CIPHER_MISMATCH` |
+| Edge (rendszer) | betölt, de az oldal címe: **„A szervezet által letiltott tartalom"** |
+| Playwright saját Chromium | nem telepíthető — a `cdn.playwright.dev` letöltése ismételten timeoutol |
+
+Ugyanakkor **`curl`-lal ugyanarról a gépről HTTP 200 jön**, és a válasz a
+valódi Tippmix-oldal (`<title>Sportfogadás</title>`, `x-fe-type: full-ssr`).
+
+**Következtetés:** a blokkolás **böngésző-szintű vállalati policy**, nem
+hálózati vagy DNS-szintű tiltás — ezért látszik a különbség a curl és a
+böngésző között. Az Edge nyíltan meg is mondja. A Chrome SSL-hibája
+ugyanennek a TLS-elfogó proxynak a mellékhatása. A Playwright-út maga
+technikailag helyes, csak **ezen a gépen** nem futtatható.
+
+**Amit ez eldönt:** a WS-felderítést a felhasználónak otthoni gépről vagy
+telefonról kell elvégeznie, VAGY a szkriptet GitHub Actions runneren kell
+lefuttatni (ahol nincs vállalati proxy). Utóbbi egyben az NY-12-t is
+véglegesen lezárná.
+
 ### NY-12 — Blokkolja-e a Tippmix a GitHub Actions IP-ket? · RÉSZBEN LEZÁRVA (2026-09-18)
 
 - **A fő domain (`www.tippmixpro.hu`) és a `sports2.tippmixpro.hu` NEM
