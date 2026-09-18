@@ -61,6 +61,15 @@ jobs:
       - name: Gitleaks
         # A repó PUBLIKUS. Egy véletlenül commitolt kulcs azonnal
         # kompromittált. Ez a lépés minden commitot átvizsgál.
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        #
+        # A gitleaks/gitleaks-action a push esemény before/after SHA-jából
+        # próbálja kitalálni a vizsgálandó tartományt. Az ELSŐ push-nál a
+        # "before" SHA nem valós referencia ("ambiguous argument"), és az
+        # action erre hibával áll le — nem azért, mert titkot talált, hanem
+        # mert nincs mihez képest diffelnie. Ezért a gitleaks CLI-t közvetlenül
+        # hívjuk, és mindig a teljes checkoutolt historyt vizsgáljuk
+        # (--log-opts nélkül), ami minden esetben — első push-nál is — helyes.
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz \
+            | tar -xz -C /usr/local/bin gitleaks
+          gitleaks detect --source . --redact -v --exit-code=2
