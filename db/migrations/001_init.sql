@@ -133,8 +133,18 @@ create index if not exists tippek_clv_idx
 
 -- Duplikátumszűrés (spec döntési fa 12. pont): ugyanarra az eseményre és
 -- piacra ugyanazon a napon csak egyszer mehet javaslat.
+--
+-- MEGJEGYZÉS: sima "idopont_utc::date" nem indexelhető, mert a cast a
+-- munkamenet időzónájától függ, a Postgres ezért nem tekinti IMMUTABLE-nek
+-- (hiba: "functions in index expression must be marked IMMUTABLE").
+-- Az "AT TIME ZONE 'UTC'" fix zónára rögzíti a kifejezést, ami már
+-- IMMUTABLE — ez helyes is, mert a projekt szabálya szerint minden
+-- időbélyeg UTC-ben tárolódik (lásd kozos/ido.py).
 create unique index if not exists tippek_egyedi_napi_idx
-    on public.tippek (tippmix_event_id, piac, kimenetel, (idopont_utc::date));
+    on public.tippek (
+        tippmix_event_id, piac, kimenetel,
+        ((idopont_utc at time zone 'UTC')::date)
+    );
 
 
 -- -----------------------------------------------------------------------------
