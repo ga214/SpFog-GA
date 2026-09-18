@@ -30,6 +30,7 @@ from __future__ import annotations
 
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 
@@ -195,14 +196,111 @@ def osszes_aktiv_letoltes(szezonok_szama: int | None = None) -> dict[str, int]:
         if not liga.aktiv or not liga.soccerdata_liga:
             continue
         tabla = footballdata_letoltes(liga.kod, szezonok)
+
+        if liga.understat_liga:
+            xg = understat_xg_letoltes(liga.understat_liga, szezonok)
+            tabla = xg_hozzafuzes(tabla, liga.kod, xg)
+
         mentes(tabla, liga.kod)
         eredmeny[liga.kod] = len(tabla)
     return eredmeny
 
 
+def understat_szezon_kodok(szezonok: list[str]) -> list[str]:
+    """A "2425" alakú kódokból az Understat négyjegyű kezdőévét adja: "2024"."""
+    return [f"20{kod[:2]}" for kod in szezonok]
+
+
+def _nev_leképezés(liga_kod: str) -> dict[str, str]:
+    """Understat → football-data csapatnevek (data/understat_nevek.csv).
+
+    VERZIÓZOTT, kézi munka. A fuzzy illesztés csak javaslatot adott; a fájl
+    fejlécében ott a konkrét példa, ahol a fuzzy rossz csapatot választott
+    volna (CLAUDE.md 3. szabály).
+    """
+    utvonal = gyoker_ut("data/understat_nevek.csv")
+    if not utvonal.exists():
+        return {}
+    tabla = pd.read_csv(utvonal, comment="#")
+    liga = tabla.loc[tabla["liga_kod"] == liga_kod]
+    return dict(zip(liga["understat_nev"], liga["footballdata_nev"], strict=True))
+
+
 def understat_xg_letoltes(understat_liga: str, szezonok: list[str]) -> pd.DataFrame:
-    """Understat xG-adat letöltése."""
-    raise NotImplementedError("Fázis 2-ben készül el")
+    """Understat xG-adat letöltése.
+
+    Args:
+        szezonok: "2425" alakú kódok, mint a football-data letöltésnél.
+
+    Returns:
+        datum, hazai, vendeg, hazai_xg, vendeg_xg — football-data csapatnevekkel.
+    """
+    from understatapi import UnderstatClient
+
+    sorok: list[dict[str, Any]] = []
+    with UnderstatClient() as kliens:
+        for ev in understat_szezon_kodok(szezonok):
+            try:
+                meccsek = kliens.league(league=understat_liga).get_match_data(season=ev)
+            except Exception as hiba:
+                # Egy hiányzó szezon nem állíthatja meg a többit — a legrégebbi
+                # évek egyes ligáknál nincsenek meg.
+                log.warning("understat_szezon_kihagyva", liga=understat_liga, ev=ev, hiba=str(hiba))
+                continue
+            for meccs in meccsek:
+                if not meccs.get("isResult"):
+                    continue
+                sorok.append(
+                    {
+                        "datum": pd.to_datetime(meccs["datetime"]),
+                        "hazai": meccs["h"]["title"],
+                        "vendeg": meccs["a"]["title"],
+                        "hazai_xg": float(meccs["xG"]["h"]),
+                        "vendeg_xg": float(meccs["xG"]["a"]),
+                    }
+                )
+
+    log.info("understat_letoltve", liga=understat_liga, meccsek=len(sorok))
+    return pd.DataFrame(sorok)
+
+
+def xg_hozzafuzes(meccsek: pd.DataFrame, liga_kod: str, xg: pd.DataFrame) -> pd.DataFrame:
+    """Az xG-t a meccstáblához köti csapatnév + dátum alapján.
+
+    A dátum órára nem egyezik a két forrásban (időzóna, átütemezés), ezért
+    NAPRA kerekítve párosítunk. Ez a párosítás szándékosan szigorú: ami nem
+    illeszkedik pontosan, az NaN marad, nem "körülbelül jó" értéket kap.
+    """
+    if xg.empty:
+        meccsek = meccsek.copy()
+        meccsek["hazai_xg"] = pd.NA
+        meccsek["vendeg_xg"] = pd.NA
+        return meccsek
+
+    leképezés = _nev_leképezés(liga_kod)
+    xg = xg.copy()
+    xg["hazai"] = xg["hazai"].replace(leképezés)
+    xg["vendeg"] = xg["vendeg"].replace(leképezés)
+    xg["nap"] = pd.to_datetime(xg["datum"]).dt.normalize()
+
+    bal = meccsek.copy()
+    bal["nap"] = pd.to_datetime(bal["datum"]).dt.normalize()
+
+    egyesitett = bal.merge(
+        xg[["nap", "hazai", "vendeg", "hazai_xg", "vendeg_xg"]],
+        on=["nap", "hazai", "vendeg"],
+        how="left",
+    ).drop(columns=["nap"])
+
+    talalat = int(egyesitett["hazai_xg"].notna().sum())
+    log.info(
+        "xg_parositas",
+        liga=liga_kod,
+        meccsek=len(egyesitett),
+        talalat=talalat,
+        arany=f"{talalat / max(len(egyesitett), 1):.1%}",
+    )
+    return egyesitett
 
 
 def clubelo_letoltes(datum: date) -> pd.DataFrame:

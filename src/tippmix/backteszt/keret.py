@@ -165,6 +165,7 @@ def walk_forward(
     ujrafittelés_naponta: int = 7,
     xi: float = 0.0035,
     w: float = 0.35,
+    xg_suly: float = 0.0,
     min_edge: float = 0.03,
     min_meccs: int = 12,
     min_odds: float = 1.30,
@@ -202,7 +203,7 @@ def walk_forward(
                 continue
 
             try:
-                par = futball.illeszt(meccsek, liga_kod, asof, xi=xi)
+                par = futball.illeszt(meccsek, liga_kod, asof, xi=xi, xg_suly=xg_suly)
             except ModellHiba as hiba:
                 log.warning(
                     "backteszt_illesztes_sikertelen", liga=liga_kod, nap=str(nap), hiba=str(hiba)
@@ -226,6 +227,7 @@ def walk_forward(
             "ligak": ligak,
             "xi": xi,
             "w": w,
+            "xg_suly": xg_suly,
             "min_edge": min_edge,
             "min_meccs": min_meccs,
             "ujrafittelés_naponta": ujrafittelés_naponta,

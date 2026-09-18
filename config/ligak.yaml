@@ -34,7 +34,7 @@ futball:
     orszag: "Spanyolország"
     aktiv: true
     xg_forras: "understat"
-    understat_liga: "La_liga"
+    understat_liga: "La_Liga"
     soccerdata_liga: "ESP-La Liga"
     clubelo: true
 

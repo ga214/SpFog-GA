@@ -147,3 +147,89 @@ def test_soccerdata_nev_nelkuli_liga_hibat_dob() -> None:
     """A Championshipnek nincs `soccerdata_liga`-ja — nem találgatunk."""
     with pytest.raises(AdatgyujtesHiba, match="soccerdata_liga"):
         tortenelmi.footballdata_letoltes("E1", ["2425"])
+
+
+# ---------------------------------------------------------------------------
+# Understat xG (Fázis 3)
+# ---------------------------------------------------------------------------
+
+
+def test_understat_szezon_kodok_negyjegyu_kezdoevet_ad() -> None:
+    assert tortenelmi.understat_szezon_kodok(["2324", "2425"]) == ["2023", "2024"]
+
+
+def _meccstabla() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "liga_kod": ["E0", "E0"],
+            "szezon": ["2425", "2425"],
+            "datum": pd.to_datetime(["2024-08-16 19:00", "2024-08-17 14:00"]),
+            "hazai": ["Man City", "Brentford"],
+            "vendeg": ["Man United", "Chelsea"],
+            "hazai_gol": [2, 1],
+            "vendeg_gol": [0, 1],
+        }
+    )
+
+
+def _xg_tabla() -> pd.DataFrame:
+    """Understat-oldali nevekkel — ezeket kell leképezni."""
+    return pd.DataFrame(
+        {
+            "datum": pd.to_datetime(["2024-08-16 18:00", "2024-08-17 13:00"]),
+            "hazai": ["Manchester City", "Brentford"],
+            "vendeg": ["Manchester United", "Chelsea"],
+            "hazai_xg": [2.04, 1.31],
+            "vendeg_xg": [0.42, 1.08],
+        }
+    )
+
+
+def test_xg_hozzafuzes_leképezi_a_csapatneveket() -> None:
+    """A "Manchester City" -> "Man City" leképezés nélkül nem lenne találat."""
+    ki = tortenelmi.xg_hozzafuzes(_meccstabla(), "E0", _xg_tabla())
+    assert ki.loc[0, "hazai_xg"] == pytest.approx(2.04)
+
+
+def test_xg_hozzafuzes_ora_elteresnel_is_parosit() -> None:
+    """A két forrás órája eltér (időzóna); napra kerekítve párosítunk."""
+    ki = tortenelmi.xg_hozzafuzes(_meccstabla(), "E0", _xg_tabla())
+    assert ki["hazai_xg"].notna().all()
+
+
+def test_xg_hozzafuzes_nem_talalt_meccs_nan_marad() -> None:
+    """Ami nem illeszkedik pontosan, az NaN — nem "körülbelül jó" érték."""
+    xg = _xg_tabla()
+    xg.loc[0, "datum"] = pd.Timestamp("2024-09-30 19:00")
+    ki = tortenelmi.xg_hozzafuzes(_meccstabla(), "E0", xg)
+    assert pd.isna(ki.loc[0, "hazai_xg"])
+    assert ki.loc[1, "hazai_xg"] == pytest.approx(1.31)
+
+
+def test_xg_hozzafuzes_ures_xg_eseten_nan_oszlopokat_ad() -> None:
+    ki = tortenelmi.xg_hozzafuzes(_meccstabla(), "E0", pd.DataFrame())
+    assert "hazai_xg" in ki.columns
+    assert ki["hazai_xg"].isna().all()
+
+
+def test_xg_hozzafuzes_megtartja_a_meccsek_szamat() -> None:
+    """A join nem duplikálhat és nem veszíthet sorokat."""
+    ki = tortenelmi.xg_hozzafuzes(_meccstabla(), "E0", _xg_tabla())
+    assert len(ki) == 2
+
+
+def test_nev_leképezés_betolti_a_verziozott_csvt() -> None:
+    leképezés = tortenelmi._nev_leképezés("E0")
+    assert leképezés["Manchester City"] == "Man City"
+    assert leképezés["Nottingham Forest"] == "Nott'm Forest"
+
+
+def test_nev_leképezés_ligankent_szur() -> None:
+    """A "Parma" leképezés csak az olasz ligában érvényes."""
+    assert "Parma Calcio 1913" in tortenelmi._nev_leképezés("I1")
+    assert "Parma Calcio 1913" not in tortenelmi._nev_leképezés("E0")
+
+
+def test_nev_leképezés_athletic_club_nem_betis() -> None:
+    """A konkrét eset, amit a fuzzy elrontott volna (lásd a CSV fejlécét)."""
+    assert tortenelmi._nev_leképezés("SP1")["Athletic Club"] == "Ath Bilbao"

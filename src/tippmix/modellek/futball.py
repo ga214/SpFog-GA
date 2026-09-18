@@ -28,6 +28,7 @@ from datetime import UTC, datetime
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
+from scipy.special import gammaln
 from scipy.stats import poisson
 
 from tippmix.kozos.hibak import ModellHiba
@@ -120,6 +121,39 @@ def idosuly(meccs_datum: datetime, asof_utc: datetime, xi: float) -> float:
     return float(np.exp(-xi * napok))
 
 
+def _cel_ertekek(
+    tanito: pd.DataFrame, hazai_gol: np.ndarray, vendeg_gol: np.ndarray, xg_suly: float
+) -> tuple[np.ndarray, np.ndarray]:
+    """Az illesztés célértékei: a gólok és az xG keveréke.
+
+    Ahol nincs xG (hiányzó adat), ott a tényleges gól marad — nem találgatunk
+    és nem dobjuk el a meccset.
+    """
+    if xg_suly <= 0 or "hazai_xg" not in tanito.columns:
+        return hazai_gol.astype(float), vendeg_gol.astype(float)
+
+    hazai_xg = pd.to_numeric(tanito["hazai_xg"], errors="coerce").to_numpy(dtype=float)
+    vendeg_xg = pd.to_numeric(tanito["vendeg_xg"], errors="coerce").to_numpy(dtype=float)
+    hazai_xg = np.where(np.isfinite(hazai_xg), hazai_xg, hazai_gol)
+    vendeg_xg = np.where(np.isfinite(vendeg_xg), vendeg_xg, vendeg_gol)
+
+    return (
+        (1 - xg_suly) * hazai_gol + xg_suly * hazai_xg,
+        (1 - xg_suly) * vendeg_gol + xg_suly * vendeg_xg,
+    )
+
+
+def _log_poisson(k: np.ndarray, lam: np.ndarray) -> np.ndarray:
+    """Poisson log-sűrűség, nem egész `k`-ra is értelmezve.
+
+    A `scipy.stats.poisson.logpmf` csak egész `k`-t fogad el, de az xG-vel
+    kevert célérték tört. A képlet (k·log λ − λ − log Γ(k+1)) a faktoriális
+    gamma-kiterjesztésével folytonosan értelmes; ez a szokásos megoldás
+    (kvázi-Poisson likelihood). Egész `k`-ra pontosan a szokásos Poissont adja.
+    """
+    return k * np.log(lam) - lam - gammaln(k + 1.0)
+
+
 def _tau_matrix(
     x: np.ndarray, y: np.ndarray, lambda_h: np.ndarray, lambda_v: np.ndarray, rho: float
 ) -> np.ndarray:
@@ -133,15 +167,28 @@ def _tau_matrix(
 
 
 def illeszt(
-    meccsek: pd.DataFrame, liga_kod: str, asof_utc: datetime, xi: float
+    meccsek: pd.DataFrame,
+    liga_kod: str,
+    asof_utc: datetime,
+    xi: float,
+    xg_suly: float = 0.0,
 ) -> DixonColesParameterek:
     """Dixon-Coles illesztés egy ligára, az asof időpontig ismert meccsekből.
 
     A backtesztben MINDEN FORDULÓRA újra kell hívni — ez lassabb, de ez az
     egyetlen becsületes módszer.
 
-    A `meccsek` tábla oszlopai: datum, hazai, vendeg, hazai_gol, vendeg_gol.
+    A `meccsek` tábla oszlopai: datum, hazai, vendeg, hazai_gol, vendeg_gol,
+    és opcionálisan hazai_xg, vendeg_xg.
     Az `asof_utc` UTÁNI meccsek kizárva — jövőbe látás elleni védelem.
+
+    Args:
+        xg_suly: 0 = csak a tényleges gólok számítanak, 1 = csak az xG.
+            Az xG a szakirodalom szerint jobb előrejelző, mert kiszűri a
+            befejezés szerencséjét: egy 0-3-ra elvesztett meccs 2,1 xG-vel
+            mást mond a csapat erejéről, mint egy 0-3 0,3 xG-vel. A köztes
+            értékek a kettő keverékét használják célértékként. A végleges
+            értéket a backteszt adja.
 
     Raises:
         ModellHiba: az optimalizálás nem konvergált (ILLESZTES_SIKERTELEN)
@@ -159,6 +206,7 @@ def illeszt(
     vendeg_idx = tanito["vendeg"].map(index).to_numpy()
     hazai_gol = tanito["hazai_gol"].to_numpy(dtype=int)
     vendeg_gol = tanito["vendeg_gol"].to_numpy(dtype=int)
+    hazai_cel, vendeg_cel = _cel_ertekek(tanito, hazai_gol, vendeg_gol, xg_suly)
     sulyok = np.array(
         [idosuly(d.to_pydatetime(), asof_utc, xi) for d in tanito["datum"]], dtype=float
     )
@@ -186,7 +234,9 @@ def illeszt(
         lambda_h = np.exp(np.clip(log_lh, -10, 10))
         lambda_v = np.exp(np.clip(log_lv, -10, 10))
 
-        log_p = poisson.logpmf(hazai_gol, lambda_h) + poisson.logpmf(vendeg_gol, lambda_v)
+        log_p = _log_poisson(hazai_cel, lambda_h) + _log_poisson(vendeg_cel, lambda_v)
+        # A τ a TÉNYLEGES eredményre vonatkozik: a Dixon-Coles korrekció az
+        # alacsony gólszámok empirikus együttmozgását írja le, nem az xG-ét.
         korrekcio = _tau_matrix(hazai_gol, vendeg_gol, lambda_h, lambda_v, rho)
         # A τ negatívvá válhat szélsőséges ρ-nál; ilyenkor a log
         # értelmezhetetlen, ezért nagy büntetést adunk vissza.

@@ -1,0 +1,46 @@
+liga_kod,understat_nev,footballdata_nev
+# Understat -> football-data.co.uk csapatnév-leképezés az xG összekötéséhez.
+#
+# VERZIÓZOTT, KÉZI MUNKA EREDMÉNYE. A fuzzy illesztés csak javaslatot adott,
+# minden sort kézzel átnéztünk (2026-09-18). Ez a CLAUDE.md 3. szabálya:
+# a fuzzy 95%-ban jó, 5%-ban csendben rossz csapatot választ.
+#
+# Konkrét példa, amiért ez nem automatizálható: az "Athletic Club"-ra a fuzzy
+# a "Betis"-t adta a legjobb találatnak (54 pont), holott a helyes párja az
+# "Ath Bilbao". Automatikus elfogadás esetén a Bilbao xG-je némán a Betiséhez
+# került volna.
+#
+# Csak az ELTÉRŐ nevek szerepelnek itt; ami pontosan egyezik, az nem kell.
+E0,Manchester City,Man City
+E0,Manchester United,Man United
+E0,Newcastle United,Newcastle
+E0,Nottingham Forest,Nott'm Forest
+E0,Wolverhampton Wanderers,Wolves
+SP1,Athletic Club,Ath Bilbao
+SP1,Atletico Madrid,Ath Madrid
+SP1,Celta Vigo,Celta
+SP1,Espanyol,Espanol
+SP1,Rayo Vallecano,Vallecano
+SP1,Real Betis,Betis
+SP1,Real Oviedo,Oviedo
+SP1,Real Sociedad,Sociedad
+SP1,Real Valladolid,Valladolid
+D1,Arminia Bielefeld,Bielefeld
+D1,Bayer Leverkusen,Leverkusen
+D1,Borussia Dortmund,Dortmund
+D1,Borussia M.Gladbach,M'gladbach
+D1,Eintracht Frankfurt,Ein Frankfurt
+D1,FC Cologne,FC Koln
+D1,FC Heidenheim,Heidenheim
+D1,Greuther Fuerth,Greuther Furth
+D1,Hamburger SV,Hamburg
+D1,Hertha Berlin,Hertha
+D1,Mainz 05,Mainz
+D1,RasenBallsport Leipzig,RB Leipzig
+D1,St. Pauli,St Pauli
+D1,VfB Stuttgart,Stuttgart
+I1,AC Milan,Milan
+I1,Parma Calcio 1913,Parma
+F1,Clermont Foot,Clermont
+F1,Paris Saint Germain,Paris SG
+F1,Saint-Etienne,St Etienne
